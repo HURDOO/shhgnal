@@ -1,0 +1,291 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <meta name="theme-color" content="#1f3d36" />
+  <title>쉿!그널</title>
+  <!-- 건물별 매니페스트: /b/<slug>/manifest.webmanifest -->
+  <link rel="manifest" href="manifest.webmanifest" />
+  <link rel="icon" type="image/png" href="/favicon.png" />
+  <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-title" content="쉿!그널" />
+  <link rel="stylesheet" href="/style.css" />
+</head>
+<body>
+  <!-- 없는 건물 -->
+  <main id="view-missing" class="view" hidden>
+    <div class="brand">
+      <img src="/logo.png" alt="쉿!그널 로고" width="80" height="80" class="logo" />
+      <h1>쉿!그널</h1>
+      <p class="muted">건물을 찾을 수 없어요. 우리 집 전용 QR을 다시 찍어 주세요.</p>
+    </div>
+  </main>
+
+  <!-- 1. 세대 등록 -->
+  <main id="view-join" class="view" hidden>
+    <div class="brand">
+      <img src="/logo.png" alt="쉿!그널 로고" width="96" height="96" class="logo" />
+      <h1>쉿!그널</h1>
+      <p class="building-name" data-building-name></p>
+      <p class="muted">얼굴 붉히기 전에, 이웃끼리 정중하게 똑똑.</p>
+    </div>
+    <!-- 세대 QR로 들어온 경우: 코드로 호수 확인 -->
+    <form id="code-form" class="card" hidden>
+      <p class="muted small">우리 집 전용 QR로 들어오셨어요</p>
+      <div class="code-unit"><span id="code-unit"></span>호</div>
+      <p class="hint">가족 모두 같은 QR을 찍어 각자 휴대폰으로 등록하면 함께 알림을 받아요.</p>
+      <button type="submit" class="btn primary">이 호수로 등록하고 알림 받기</button>
+      <p id="code-error" class="error" role="alert"></p>
+    </form>
+    <!-- 세대 QR 없이 들어온 경우 -->
+    <section id="need-code" class="card" hidden>
+      <strong>📮 우리 집 전용 QR을 찍어 주세요</strong>
+      <p class="small">다른 집으로 잘못 등록되는 일을 막으려고, 세대마다 다른 QR로 등록해요. QR은 관리사무소에서 세대별로 나눠 드려요.</p>
+    </section>
+    <form id="join-form" class="card" hidden>
+      <label for="unit-input">우리 집 호수</label>
+      <input id="unit-input" class="big-input" type="text" inputmode="numeric" autocomplete="off" placeholder="예: 703" required />
+      <p class="hint">시연용으로 호수 직접 입력이 켜져 있어요. 가족 모두 각자 등록하면 함께 알림을 받아요.</p>
+      <button type="submit" class="btn primary">등록하고 알림 받기</button>
+      <p id="join-error" class="error" role="alert"></p>
+    </form>
+    <section id="install-tip" class="card warn" hidden>
+      <strong>📲 앱으로 설치하면 알림을 놓치지 않아요</strong>
+      <p class="small">아이폰: Safari 공유 버튼 → <b>홈 화면에 추가</b> → 홈 화면 아이콘으로 열기</p>
+      <button id="install-btn" class="btn ghost small" hidden>앱 설치하기</button>
+    </section>
+  </main>
+
+  <!-- 홈 -->
+  <main id="view-home" class="view" hidden>
+    <header class="topbar">
+      <div>
+        <div class="muted small" data-building-name></div>
+        <div class="unit-title"><span id="my-unit"></span>호</div>
+      </div>
+      <div class="topbar-right">
+        <span id="notif-badge" class="badge"></span>
+      </div>
+    </header>
+    <div class="unit-actions">
+      <button id="move-btn" class="btn ghost small">🔁 호수 변경</button>
+      <button id="leave-btn" class="btn ghost small">등록 해제</button>
+    </div>
+
+    <section id="quiet-banner" class="quiet-banner"></section>
+
+    <section id="blocked-banner" class="card danger" hidden>
+      <strong>🚫 알림 보내기가 제한됐어요</strong>
+      <p class="small">받은 이웃들의 신고가 누적됐어요. 착오라면 관리사무소 문의로 알려 주세요.</p>
+    </section>
+
+    <section id="notif-warning" class="card warn" hidden>
+      <strong>푸시 알림이 꺼져 있어요</strong>
+      <p class="small" id="notif-warning-text"></p>
+      <button id="notif-retry" class="btn ghost small">알림 허용하기</button>
+    </section>
+
+    <section class="card">
+      <h2>어디서 소리가 나나요?</h2>
+      <p class="muted small">보내는 우리 집 호수는 공개되지 않아요. 앱에 가입하지 않은 집은 관리사무소가 대신 연락해요.</p>
+      <div id="quick-targets" class="quick-targets"></div>
+    </section>
+
+    <section class="card">
+      <div class="section-head">
+        <h2>🙏 미리 양해 구하기</h2>
+        <button id="notice-new" class="btn ghost small">+ 올리기</button>
+      </div>
+      <p class="muted small">이사 · 공사 · 손님 방문처럼 시끄러울 일이 있으면 이웃에게 먼저 알려요.</p>
+      <ul id="notices" class="notices"></ul>
+      <p id="notices-empty" class="muted small">지금 올라온 양해 공지가 없어요.</p>
+      <button id="calendar-open" class="btn ghost small wide">📅 캘린더로 자세히 보기</button>
+    </section>
+
+    <section class="card">
+      <div class="section-head">
+        <h2>우리 동 배치도</h2>
+        <span class="legend"><i class="dot active"></i>앱 사용 <i class="dot me"></i>우리 집</span>
+      </div>
+      <p class="muted small">세대를 눌러 직접 알릴 수도 있어요. 앱 미가입 세대는 관리사무소를 거쳐 전달돼요.</p>
+      <div id="building-map" class="building-map"></div>
+    </section>
+
+    <section class="card">
+      <h2>알림 기록</h2>
+      <ul id="history" class="history"></ul>
+      <p id="history-empty" class="muted small">아직 주고받은 알림이 없어요.</p>
+    </section>
+
+    <div class="fab-stack">
+      <button id="chat-fab" class="fab" aria-label="관리사무소 문의 열기">💬 관리사무소<span id="chat-dot" class="fab-dot" hidden></span></button>
+      <button id="vent-fab" class="fab vent" aria-label="화풀기 게임 열기">🔥 화풀기</button>
+    </div>
+  </main>
+
+  <!-- 2. 소음 알리기 시트 -->
+  <div id="compose" class="sheet-backdrop" hidden>
+    <div class="sheet" role="dialog" aria-modal="true" aria-labelledby="compose-title">
+      <div class="sheet-handle"></div>
+      <h2 id="compose-title"></h2>
+      <p class="muted small" id="compose-sub"></p>
+
+      <h3>어떤 소리인가요?</h3>
+      <div id="noise-types" class="chips"></div>
+      <div id="etc-wrap" class="etc-box" hidden>
+        <textarea id="etc-text" rows="3" placeholder="하고 싶은 말을 100자 안으로 적어 주세요.&#10;예: 요즘 밤 11시 넘어서 쿵쿵 소리가 30분 넘게 나서 잠을 못 자고 있어요."></textarea>
+        <div class="etc-foot"><span class="muted small">🛡️ AI가 정중하게 다듬어 전달해요. 원문은 관리사무소만 볼 수 있어요.</span><span class="muted small" id="etc-count"></span></div>
+        <div id="etc-result" class="etc-result" hidden></div>
+      </div>
+
+      <div class="preview" id="compose-preview"></div>
+      <p class="muted small" id="compose-limit"></p>
+      <p id="compose-error" class="error" role="alert"></p>
+      <div class="sheet-actions">
+        <button id="compose-cancel" class="btn ghost">취소</button>
+        <button id="compose-send" class="btn primary" disabled>정중하게 보내기</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 3. 받은 알림 -->
+  <div id="incoming" class="sheet-backdrop" hidden>
+    <div class="sheet incoming" role="alertdialog" aria-modal="true" aria-labelledby="incoming-title">
+      <div class="incoming-icon" id="incoming-emoji">🚪</div>
+      <h2 id="incoming-title">똑똑, 이웃이에요</h2>
+      <p id="incoming-body"></p>
+      <div id="incoming-message" class="message-box" hidden></div>
+      <p id="incoming-night" class="night-pill" hidden>🌙 조용한 시간에 온 알림이에요</p>
+      <p class="muted small">한마디 답장하면 이웃도 마음이 풀려요. 우리 집 소리가 아니라면 그렇게 알려 주세요.</p>
+      <div id="reply-options" class="reply-options"></div>
+      <button id="custom-reply-open" class="btn ghost small wide">✏️ 직접 답장 쓰기</button>
+      <div id="custom-reply" class="etc-box" hidden>
+        <textarea id="custom-reply-text" rows="2" maxlength="100" placeholder="예: 아이 생일이라 9시까지만 놀게 할게요. 죄송해요!"></textarea>
+        <div class="etc-foot"><span class="muted small">🛡️ AI가 정중하게 다듬어 전달해요.</span><span class="muted small" id="custom-reply-count">0/100</span></div>
+        <button id="custom-reply-send" class="btn primary">다듬어서 답장 보내기</button>
+        <p id="custom-reply-error" class="error" role="alert"></p>
+      </div>
+      <div class="incoming-foot">
+        <button id="incoming-later" class="btn ghost small">나중에 답장</button>
+        <button id="incoming-report" class="link-btn">🚩 부당한 알림 신고</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 관리사무소 답변 팝업 -->
+  <div id="admin-reply" class="sheet-backdrop" hidden>
+    <div class="sheet incoming" role="alertdialog" aria-modal="true" aria-labelledby="admin-reply-title">
+      <div class="incoming-icon">💬</div>
+      <h2 id="admin-reply-title">관리사무소 답변이 왔어요</h2>
+      <p class="admin-reply-text" id="admin-reply-text"></p>
+      <p class="muted small" id="admin-reply-more" hidden></p>
+      <div class="reply-options">
+        <button id="admin-reply-open" class="btn primary">문의창에서 보기</button>
+      </div>
+      <button id="admin-reply-close" class="btn ghost small">닫기</button>
+    </div>
+  </div>
+
+  <!-- 4. 신고 -->
+  <div id="report" class="sheet-backdrop" hidden>
+    <div class="sheet" role="dialog" aria-modal="true" aria-labelledby="report-title">
+      <div class="sheet-handle"></div>
+      <h2 id="report-title">🚩 이 알림을 신고할까요?</h2>
+      <p class="muted small">신고 내용은 관리사무소에만 전달되고, 보낸 세대는 알 수 없어요. 여러 세대에게 신고되면 알림 보내기가 제한돼요.</p>
+      <div id="report-reasons" class="reply-options"></div>
+      <p id="report-error" class="error" role="alert"></p>
+      <button id="report-cancel" class="btn ghost wide">취소</button>
+    </div>
+  </div>
+
+  <!-- 호수 변경 -->
+  <div id="move" class="sheet-backdrop" hidden>
+    <form id="move-form" class="sheet" role="dialog" aria-modal="true" aria-labelledby="move-title">
+      <div class="sheet-handle"></div>
+      <h2 id="move-title">🔁 호수 변경</h2>
+      <p class="muted small">호수를 잘못 입력했을 때 고칠 수 있어요. 문의 내용은 그대로 유지돼요.</p>
+      <input id="move-input" class="big-input" type="text" inputmode="numeric" autocomplete="off" placeholder="새 호수" required />
+      <p id="move-error" class="error" role="alert"></p>
+      <div class="sheet-actions">
+        <button type="button" id="move-cancel" class="btn ghost">취소</button>
+        <button type="submit" class="btn primary">바꾸기</button>
+      </div>
+    </form>
+  </div>
+
+  <!-- 5. 양해 구하기 작성 -->
+  <div id="notice-sheet" class="sheet-backdrop" hidden>
+    <form id="notice-form" class="sheet" role="dialog" aria-modal="true" aria-labelledby="notice-title">
+      <div class="sheet-handle"></div>
+      <h2 id="notice-title">🙏 미리 양해 구하기</h2>
+      <p class="muted small">공지에는 우리 집 호수가 함께 보여요. 위·아래·옆집에는 푸시로도 알려요.</p>
+      <h3>어떤 일인가요?</h3>
+      <div id="notice-types" class="chips"></div>
+      <h3>언제인가요?</h3>
+      <div id="notice-days" class="chips"></div>
+      <input id="notice-date" class="date-input" type="date" required />
+      <div class="time-row">
+        <label><span class="muted small">시작</span><input id="notice-start" type="time" value="14:00" required /></label>
+        <span class="muted">~</span>
+        <label><span class="muted small">끝</span><input id="notice-end" type="time" value="17:00" required /></label>
+      </div>
+      <h3>한마디 <span class="muted small">(선택)</span></h3>
+      <div class="etc-wrap">
+        <input id="notice-text" type="text" placeholder="예: 소파 배송이 와요. 최대한 빨리 끝낼게요!" autocomplete="off" />
+      </div>
+      <p id="notice-error" class="error" role="alert"></p>
+      <div class="sheet-actions">
+        <button type="button" id="notice-cancel" class="btn ghost">취소</button>
+        <button type="submit" id="notice-send" class="btn primary" disabled>이웃에게 알리기</button>
+      </div>
+    </form>
+  </div>
+
+  <!-- 양해 공지 캘린더 -->
+  <div id="calendar" class="sheet-backdrop" hidden>
+    <div class="sheet" role="dialog" aria-modal="true" aria-labelledby="cal-title">
+      <div class="chat-head">
+        <h2 id="cal-title">📅 양해 공지 캘린더</h2>
+        <button id="calendar-close" class="btn ghost small">닫기</button>
+      </div>
+      <div class="cal-nav">
+        <button id="cal-prev" class="btn ghost small" aria-label="이전 달">‹</button>
+        <strong id="cal-month"></strong>
+        <button id="cal-next" class="btn ghost small" aria-label="다음 달">›</button>
+      </div>
+      <div class="cal-grid" id="cal-grid"></div>
+      <h3 id="cal-day-title"></h3>
+      <ul id="cal-day-list" class="notices"></ul>
+      <p id="cal-day-empty" class="muted small">이 날은 올라온 공지가 없어요.</p>
+    </div>
+  </div>
+
+  <!-- 6. 관리사무소 문의 -->
+  <div id="chat" class="sheet-backdrop" hidden>
+    <div class="sheet chat-sheet" role="dialog" aria-modal="true" aria-labelledby="chat-title">
+      <div class="chat-head">
+        <h2 id="chat-title">💬 관리사무소 문의</h2>
+        <button id="chat-close" class="btn ghost small">닫기</button>
+      </div>
+      <div id="chat-log" class="chat-log"></div>
+      <div class="faq-cards" id="faq-cards"></div>
+      <form id="chat-form" class="chat-form">
+        <input id="chat-input" type="text" placeholder="관리사무소에 문의하기" autocomplete="off" maxlength="3000" />
+        <button class="btn primary" type="submit">보내기</button>
+      </form>
+    </div>
+  </div>
+
+  <!-- 화풀기: 실제로는 아무에게도 보내지 않는 화풀이 게임 (public/vent.html) -->
+  <div id="vent" class="vent-overlay" hidden>
+    <iframe id="vent-frame" title="화풀기 게임" allow="autoplay"></iframe>
+  </div>
+
+  <div id="toast" class="toast" role="status" hidden></div>
+
+  <script src="/app.js" type="module"></script>
+</body>
+</html>

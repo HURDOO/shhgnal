@@ -1,0 +1,294 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="theme-color" content="#1f3d36" />
+  <title>쉿!그널 관리사무소</title>
+  <link rel="icon" type="image/png" href="/favicon.png" />
+  <link rel="stylesheet" href="/style.css" />
+  <link rel="stylesheet" href="/admin.css" />
+</head>
+<body class="admin">
+  <!-- 관리자 키 입력 -->
+  <main id="gate" class="view" hidden>
+    <div class="brand">
+      <img src="/logo.png" alt="쉿!그널 로고" width="80" height="80" class="logo" />
+      <h1>쉿!그널 관리사무소</h1>
+      <p class="muted" id="gate-building"></p>
+    </div>
+    <form id="gate-form" class="card">
+      <label for="gate-key">관리자 키</label>
+      <input id="gate-key" class="big-input" type="password" autocomplete="off" required />
+      <button class="btn primary" type="submit">들어가기</button>
+      <p id="gate-error" class="error" role="alert"></p>
+    </form>
+  </main>
+
+  <div id="app" hidden>
+    <header class="a-top">
+      <div class="a-title">
+        <img src="/logo.png" alt="" width="40" height="40" />
+        <div>
+          <div class="muted small">쉿!그널 관리사무소</div>
+          <strong id="a-building"></strong>
+        </div>
+      </div>
+      <nav class="a-links">
+        <a id="link-user" target="_blank" rel="noopener">주민 화면 ↗</a>
+      </nav>
+    </header>
+
+    <nav class="a-tabs" role="tablist">
+      <button role="tab" data-tab="board" aria-selected="true">📺 현황판</button>
+      <button role="tab" data-tab="dash" aria-selected="false">현황</button>
+      <button role="tab" data-tab="relays">연락 요청 <span class="count" id="relay-open" hidden></span></button>
+      <button role="tab" data-tab="chat">1:1 문의 <span class="count" id="chat-unread" hidden></span></button>
+      <button role="tab" data-tab="reports">신고 <span class="count" id="report-open" hidden></span></button>
+      <button role="tab" data-tab="filter">메시지 필터 <span class="count" id="filter-flag" hidden></span></button>
+      <button role="tab" data-tab="notices">공지</button>
+      <button role="tab" data-tab="codes">세대 QR</button>
+      <button role="tab" data-tab="layout">세대 배치</button>
+      <button role="tab" data-tab="faq">자주 묻는 질문</button>
+      <button role="tab" data-tab="settings">설정</button>
+    </nav>
+
+    <!-- 실시간 현황판 -->
+    <section class="a-panel board" data-panel="board" id="board">
+      <div class="board-head">
+        <div>
+          <h2>📺 실시간 현황판</h2>
+          <span class="muted small" id="bd-sub"></span>
+        </div>
+        <div class="board-live">
+          <span class="live"><i class="live-dot"></i>LIVE</span>
+          <span class="muted small" id="bd-clock"></span>
+          <button id="bd-full" class="btn ghost small">⛶ 전체 화면</button>
+        </div>
+      </div>
+      <div class="kpis" id="bd-kpis"></div>
+      <div class="board-grid">
+        <div class="card bd-map-card">
+          <div class="section-head"><h2>민원 흐름</h2><span class="muted small">보낸 집 → 받은 집 · 굵을수록 많이 · 점선은 관리사무소 경유 · 노란색은 방금</span></div>
+          <div class="bd-map-wrap" id="bd-map-wrap">
+            <div id="bd-map" class="building-map bd-map"></div>
+            <svg id="bd-arrows" class="bd-arrows" aria-hidden="true"></svg>
+          </div>
+        </div>
+        <div class="card bd-feed-card">
+          <h2>실시간 소식</h2>
+          <ul id="bd-feed" class="bd-feed"></ul>
+          <p id="bd-feed-empty" class="muted small">아직 소식이 없어요.</p>
+        </div>
+      </div>
+      <div class="board-grid three">
+        <div class="card"><h2>📣 많이 오간 민원</h2><ol id="bd-pairs" class="bd-rank"></ol></div>
+        <div class="card"><h2>🎯 화풀이 표적</h2><ol id="bd-targets" class="bd-rank"></ol><p class="muted small">화풀기는 게임이라 실제로는 전달되지 않아요.</p></div>
+        <div class="card"><h2>🔥 많이 던진 세대</h2><ol id="bd-throwers" class="bd-rank"></ol></div>
+      </div>
+    </section>
+
+    <!-- 현황 -->
+    <section class="a-panel" data-panel="dash" hidden>
+      <div id="quiet-now" class="quiet-banner"></div>
+      <div class="stats">
+        <div class="stat"><span id="st-units">0</span><small>등록 세대</small></div>
+        <div class="stat"><span id="st-alerts">0</span><small>최근 7일 알림</small></div>
+        <div class="stat"><span id="st-repeat">0</span><small>반복 소음 세대</small></div>
+        <div class="stat"><span id="st-reports">0</span><small>처리할 신고</small></div>
+        <div class="stat"><span id="st-chats">0</span><small>새 문의</small></div>
+      </div>
+      <div class="a-grid">
+        <div class="card">
+          <div class="section-head"><h2>소음 지도 <span class="muted small">최근 7일 받은 알림</span></h2></div>
+          <div class="heat-legend small muted"><i class="h0"></i>0 <i class="h1"></i>1 <i class="h2"></i>2~3 <i class="h3"></i>4+ <i class="ring"></i>앱 사용</div>
+          <div id="heat-map" class="building-map heat"></div>
+        </div>
+        <div class="card">
+          <h2>🚨 중재가 필요할 수 있는 세대</h2>
+          <p class="muted small" id="repeat-desc"></p>
+          <ul id="repeat-list" class="a-list"></ul>
+          <p id="repeat-empty" class="muted small">아직 없어요.</p>
+        </div>
+      </div>
+      <div class="card">
+        <h2>최근 소음 알림</h2>
+        <p class="muted small">관리사무소에만 보내는 세대가 보여요.</p>
+        <div class="table-wrap">
+          <table class="a-table">
+            <thead><tr><th>시간</th><th>보낸 세대</th><th>받은 세대</th><th>소음</th><th>답장</th></tr></thead>
+            <tbody id="alert-rows"></tbody>
+          </table>
+        </div>
+        <p id="alert-empty" class="muted small">아직 알림이 없어요.</p>
+      </div>
+    </section>
+
+    <!-- 앱 미가입 세대 연락 요청 -->
+    <section class="a-panel" data-panel="relays" hidden>
+      <div class="card">
+        <h2>📞 연락 요청 (앱 미가입 세대)</h2>
+        <p class="muted small">앱에 가입하지 않은 세대로 보낸 소리 민원이에요. 인터폰·방문·안내문으로 대신 전해 주고 <b>연락했어요</b>를 누르면, 민원을 보낸 세대에 알림이 가요.</p>
+        <ul id="relay-list" class="a-list relay-list"></ul>
+        <p id="relay-empty" class="muted small">연락 요청이 없어요.</p>
+      </div>
+    </section>
+
+    <!-- 1:1 문의 -->
+    <section class="a-panel" data-panel="chat" hidden>
+      <div class="chat-admin">
+        <aside class="card chat-list">
+          <h2>문의 목록</h2>
+          <ul id="chat-list"></ul>
+          <p id="chat-empty" class="muted small">아직 문의가 없어요.</p>
+        </aside>
+        <div class="card chat-room">
+          <div class="section-head"><h2 id="room-title">대화를 골라 주세요</h2><span class="muted small" id="room-status"></span></div>
+          <div id="room-log" class="chat-log"></div>
+          <form id="room-form" class="chat-form" hidden>
+            <input id="room-input" type="text" placeholder="답변 입력" autocomplete="off" maxlength="300" />
+            <button class="btn primary" type="submit">보내기</button>
+          </form>
+        </div>
+      </div>
+    </section>
+
+    <!-- 신고 -->
+    <section class="a-panel" data-panel="reports" hidden>
+      <div class="card">
+        <h2>🚩 신고 목록</h2>
+        <p class="muted small">서로 다른 3세대에게 신고되면 자동으로 알림 보내기가 제한돼요.</p>
+        <ul id="report-list" class="a-list"></ul>
+        <p id="report-empty" class="muted small">신고가 없어요.</p>
+      </div>
+      <div class="card">
+        <h2>🚫 알림 제한된 주민</h2>
+        <ul id="blocked-list" class="a-list"></ul>
+        <p id="blocked-empty" class="muted small">제한된 주민이 없어요.</p>
+      </div>
+    </section>
+
+    <!-- 메시지 필터 -->
+    <section class="a-panel" data-panel="filter" hidden>
+      <div class="card">
+        <div class="section-head"><h2>🛡️ 메시지 필터</h2><span id="llm-status" class="tag"></span></div>
+        <p class="muted small">이웃에게 가는 기타 메시지, 양해 공지, 관리사무소 문의는 AI가 정중하게 다듬어 전달해요. 받는 사람에게는 다듬어진 글만 가고, <b>원문은 이 화면에서만</b> 볼 수 있어요. 위협·괴롭힘으로 판단된 이웃 메시지는 전달하지 않고 여기에만 남아요.</p>
+        <div class="filter-tools">
+          <label><input type="radio" name="ff" value="all" checked /> 전체</label>
+          <label><input type="radio" name="ff" value="changed" /> 다듬은 글</label>
+          <label><input type="radio" name="ff" value="blocked" /> 전달 차단</label>
+        </div>
+        <ul id="filter-list" class="filter-list"></ul>
+        <p id="filter-empty" class="muted small">아직 필터를 거친 글이 없어요.</p>
+      </div>
+    </section>
+
+    <!-- 세대 QR -->
+    <section class="a-panel" data-panel="codes" hidden>
+      <div class="card no-print">
+        <div class="section-head"><h2>📮 세대별 등록 QR</h2><button id="codes-print" class="btn primary auto">인쇄하기</button></div>
+        <p class="muted small">세대마다 다른 QR이에요. 우편함이나 현관문에 하나씩 나눠 주면, 주민은 자기 집 QR을 찍어야만 그 호수로 등록할 수 있어요 (다른 호수로 등록 불가). 이사·분실 때는 <b>다시 발급</b>하면 예전 QR은 못 쓰고, 그 세대로 등록된 주민은 새 QR로 다시 등록해야 해요.</p>
+        <p class="muted small" id="codes-origin"></p>
+      </div>
+      <div id="codes-grid" class="codes-grid"></div>
+    </section>
+
+    <!-- 공지 -->
+    <section class="a-panel" data-panel="notices" hidden>
+      <form id="an-form" class="card">
+        <h2>🏢 관리사무소 공지 올리기</h2>
+        <p class="muted small">모든 주민에게 푸시로 알려요. 엘리베이터 점검, 단지 공사 같은 일정에 써 주세요.</p>
+        <div class="an-grid">
+          <label class="field">종류 <select id="an-type"></select></label>
+          <label class="field">날짜 <input id="an-date" type="date" required /></label>
+          <label class="field">시작 <input id="an-start" type="time" value="10:00" required /></label>
+          <label class="field">끝 <input id="an-end" type="time" value="17:00" required /></label>
+        </div>
+        <label class="field">내용 <input id="an-text" type="text" maxlength="100" placeholder="예: 1~3층 배관 공사로 소음이 있어요" required /></label>
+        <button class="btn primary auto" type="submit">공지 올리기</button>
+        <p id="an-msg" class="error" role="alert"></p>
+      </form>
+      <div class="card">
+        <h2>진행 중 · 예정된 공지</h2>
+        <ul id="an-list" class="a-list"></ul>
+        <p id="an-empty" class="muted small">올라온 공지가 없어요.</p>
+      </div>
+    </section>
+
+    <!-- 세대 배치 -->
+    <section class="a-panel" data-panel="layout" hidden>
+      <div class="card">
+        <div class="section-head"><h2>🧱 세대 배치 편집</h2><span class="muted small" id="lay-size"></span></div>
+        <p class="muted small">레고처럼 세대를 놓고, 지우고, 끌어서 옮길 수 있어요. 층·라인 머리글을 누르면 그 자리에 층·라인을 넣거나 뺄 수 있어요. 위·아래·옆집은 이 배치로 정해져요.</p>
+        <div class="lego-tools" role="radiogroup" aria-label="편집 도구">
+          <button type="button" class="tool" data-tool="place" aria-pressed="true">🧱 세대 놓기</button>
+          <button type="button" class="tool" data-tool="erase" aria-pressed="false">🧽 지우기</button>
+          <button type="button" class="tool" data-tool="move" aria-pressed="false">✋ 옮기기</button>
+          <button type="button" class="tool" data-tool="edit" aria-pressed="false">✏️ 호수 고치기</button>
+        </div>
+        <p class="muted small" id="lay-hint"></p>
+        <div class="lego-scroll"><div id="lay-grid" class="lego-grid"></div></div>
+        <div id="lay-axis" class="lay-edit" hidden></div>
+        <div id="lay-edit" class="lay-edit" hidden>
+          <label>선택한 호수 <input id="lay-label" type="text" maxlength="6" /></label>
+          <button id="lay-delete" class="btn ghost small">이 세대 지우기</button>
+        </div>
+        <div class="layout-tools">
+          <button id="lay-add-top" class="btn ghost small">⬆️ 맨 위에 층 추가</button>
+          <button id="lay-add-right" class="btn ghost small">➡️ 오른쪽에 라인 추가</button>
+          <button id="lay-renumber" class="btn ghost small">층·라인으로 호수 다시 매기기</button>
+          <button id="lay-fill" class="btn ghost small">빈 칸 모두 채우기</button>
+        </div>
+        <p id="lay-msg" class="error" role="alert"></p>
+        <div class="row-end">
+          <span class="muted small" id="lay-count"></span>
+          <button id="lay-reset" class="btn ghost small">되돌리기</button>
+          <button id="lay-save" class="btn primary auto">배치 저장</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- FAQ -->
+    <section class="a-panel" data-panel="faq" hidden>
+      <div class="card">
+        <h2>자주 묻는 질문 카드</h2>
+        <p class="muted small">주민 문의창에 카드로 보이고, 누르면 챗봇이 바로 답해요. 직접 쓴 문의에 질문 키워드가 있으면 챗봇이 이 답을 안내해요.</p>
+        <div id="faq-list" class="faq-edit-list"></div>
+        <div class="row-end">
+          <button id="faq-add" class="btn ghost small">+ 질문 추가</button>
+          <button id="faq-save" class="btn primary auto">저장</button>
+        </div>
+        <p id="faq-msg" class="error" role="alert"></p>
+      </div>
+    </section>
+
+    <!-- 설정 -->
+    <section class="a-panel" data-panel="settings" hidden>
+      <form id="settings-form" class="card">
+        <h2>건물 설정</h2>
+        <label class="field">건물 이름 <input id="set-name" type="text" maxlength="30" required /></label>
+        <div class="an-grid two">
+          <label class="field">조용한 시간 시작 <select id="set-qs"></select></label>
+          <label class="field">조용한 시간 끝 <select id="set-qe"></select></label>
+        </div>
+        <p class="muted small">조용한 시간에 보낸 알림은 "늦은 시간"이라고 함께 전달되고, 관리사무소 통계에도 따로 표시돼요.</p>
+        <label class="check"><input id="set-manual" type="checkbox" /> 시연용: 세대 QR 없이 호수 직접 입력 허용</label>
+        <p class="muted small">끄면 세대 QR로만 등록할 수 있어요. 실제 운영에서는 꺼 두세요.</p>
+        <button class="btn primary auto" type="submit">저장</button>
+        <p id="set-msg" class="error" role="alert"></p>
+      </form>
+      <div class="card">
+        <h2>주소</h2>
+        <p class="small">주민: <code id="addr-user"></code></p>
+        <p class="small">관리사무소: <code id="addr-admin"></code></p>
+        <p class="muted small">관리자 키는 이 브라우저에 저장돼요. 다른 기기에서는 키를 다시 입력해야 해요.</p>
+        <button id="logout" class="btn ghost small">이 브라우저에서 로그아웃</button>
+      </div>
+    </section>
+  </div>
+
+  <div id="toast" class="toast" role="status" hidden></div>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+  <script src="/admin.js" type="module"></script>
+</body>
+</html>

@@ -1,0 +1,80 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="theme-color" content="#1f3d36" />
+  <title>쉿!그널</title>
+  <link rel="icon" type="image/png" href="/favicon.png" />
+  <link rel="stylesheet" href="/style.css" />
+  <link rel="stylesheet" href="/admin.css" />
+</head>
+<body>
+  <main class="view">
+    <div class="brand">
+      <img src="/logo.png" alt="쉿!그널 로고" width="96" height="96" class="logo" />
+      <h1>쉿!그널</h1>
+      <p class="muted">얼굴 붉히기 전에, 이웃끼리 정중하게 똑똑.</p>
+    </div>
+
+    <section class="card">
+      <h2>이렇게 써요</h2>
+      <ul class="how small">
+        <li>⬆️ <b>윗집 · 아랫집 · 옆집</b>에 소음 종류만 골라 익명으로 알려요.</li>
+        <li>🤷 어디서 나는지 모르면 <b>주변 세대 모두에게 확인 요청</b>을 보내요.</li>
+        <li>🙏 이사 · 공사 · 손님 방문은 <b>미리 양해</b>를 구해요.</li>
+        <li>🏢 반복되면 <b>관리사무소</b>가 기록을 보고 중재해요.</li>
+      </ul>
+      <a class="btn primary wide center" href="/b/demo/">데모 건물 들어가기</a>
+    </section>
+
+    <form id="create" class="card">
+      <h2>우리 건물 등록</h2>
+      <p class="muted small">동마다 주소, 세대 배치, 관리사무소 화면이 따로 생겨요.</p>
+      <label class="field">건물 이름 <input id="name" type="text" maxlength="30" placeholder="예: 푸른숲아파트 203동" required /></label>
+      <div class="an-grid two">
+        <label class="field">층수 <input id="floors" type="number" min="1" max="50" value="15" required /></label>
+        <label class="field">한 층 세대 수 (라인) <input id="lines" type="number" min="1" max="10" value="4" required /></label>
+      </div>
+      <label class="field">주소 (선택) <input id="slug" type="text" maxlength="30" placeholder="예: forest-203 (비우면 자동)" autocapitalize="off" /></label>
+      <button class="btn primary" type="submit">등록하기</button>
+      <p id="error" class="error" role="alert"></p>
+    </form>
+
+    <section id="done" class="card warn" hidden>
+      <h2>✅ 등록됐어요</h2>
+      <p class="small">주민 주소: <code id="user-url"></code></p>
+      <p class="small">관리자 키: <code id="admin-key"></code></p>
+      <p class="small"><b>관리자 키는 지금만 보여요.</b> 안전한 곳에 적어 두세요.</p>
+      <div class="row-end">
+        <a id="admin-link" class="btn primary auto">관리사무소 화면 열기</a>
+      </div>
+    </section>
+  </main>
+  <style>
+    .center { display: block; text-align: center; text-decoration: none; margin-top: 12px; }
+    .how { padding-left: 0; list-style: none; line-height: 1.6; margin: 10px 0 0; display: grid; gap: 6px; }
+  </style>
+  <script>
+    document.getElementById('create').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const err = document.getElementById('error');
+      err.textContent = '';
+      const v = (id) => document.getElementById(id).value;
+      const res = await fetch('/api/buildings', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name: v('name'), slug: v('slug'), floors: Number(v('floors')), lines: Number(v('lines')) }),
+      });
+      const d = await res.json();
+      if (!res.ok) return (err.textContent = d.error);
+      document.getElementById('user-url').textContent = `${location.origin}/b/${d.slug}/`;
+      document.getElementById('admin-key').textContent = d.adminKey;
+      // 키는 해시(#)로 넘겨 서버 로그에 남지 않게 한다
+      document.getElementById('admin-link').href = `/b/${d.slug}/admin#key=${d.adminKey}`;
+      document.getElementById('create').hidden = true;
+      document.getElementById('done').hidden = false;
+    });
+  </script>
+</body>
+</html>

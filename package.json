@@ -1,0 +1,17 @@
+{
+  "name": "knock-neighbor",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "똑똑이웃 - 층간소음 정중하게 알리기 프로토타입",
+  "scripts": {
+    "start": "node --env-file-if-exists=.env server.js",
+    "test": "node test/api-flow.mjs"
+  },
+  "engines": {
+    "node": ">=22.9"
+  },
+  "dependencies": {
+    "web-push": "^3.6.7"
+  }
+}

@@ -1,0 +1,1415 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+<title>윗집에 한마디 3D</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Black+Han+Sans&amp;family=Noto+Sans+KR:wght@400;700;900&amp;display=swap" rel="stylesheet">
+<style>
+:root{
+  /* one visual world: a night apartment block, arcade-yellow hits */
+  --night:#0d0b14;
+  --panel:#15111d;
+  --field:#1f1a2a;
+  --line:#3a3249;
+  --ink:#f4efe6;
+  --muted:#a59db5;
+  --accent:#FFD23F;
+  --calm:#5BE0B3;
+  --display:'Black Han Sans','Noto Sans KR',system-ui,sans-serif;
+  --body:'Noto Sans KR',system-ui,-apple-system,sans-serif;
+  color-scheme:dark;
+}
+*{box-sizing:border-box}
+html,body{height:100%;margin:0;background:var(--night);color:var(--ink);font-family:var(--body);overflow:hidden}
+#app{position:relative;height:100%;max-width:480px;margin:0 auto;overflow:hidden;background:#120e1a}
+#c{position:absolute;inset:0;width:100%;height:100%;display:block;touch-action:none;cursor:grab}
+#c.dragging{cursor:grabbing}
+.spin-hint{font-size:11px;color:var(--muted);text-align:center;margin-top:2px}
+#vignette{position:absolute;inset:0;pointer-events:none;box-shadow:inset 0 0 160px rgba(255,30,60,0);}
+.top{position:absolute;left:0;right:0;top:0;padding:10px 16px 0;display:flex;flex-direction:column;gap:10px;pointer-events:none}
+.bar{display:flex;align-items:center;gap:8px;height:44px}
+.bar .title{display:flex;flex-direction:column;flex:1}
+.bar .title b{font-size:17px;font-weight:900}
+.bar .title span{font-size:12px;color:var(--muted)}
+.icon-btn{pointer-events:auto;width:44px;height:44px;border-radius:22px;border:none;background:rgba(21,17,29,.55);color:var(--ink);display:flex;align-items:center;justify-content:center;cursor:pointer}
+.icon-btn:focus-visible,.btn:focus-visible,#send:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
+.gauge{display:flex;flex-direction:column;gap:6px;padding:0 6px}
+.gauge .row{display:flex;justify-content:space-between;align-items:baseline}
+.gauge .row span{font-size:12px;font-weight:700;color:#d8d0e6}
+#mood{font-family:var(--display);font-size:16px;font-variant-numeric:tabular-nums}
+.track{height:12px;border-radius:6px;background:#2a2436;border:2px solid #1a1423;overflow:hidden}
+#fill{height:100%;width:100%;border-radius:6px}
+#bubble{position:absolute;left:0;top:0;pointer-events:none;will-change:transform}
+#bubble .in{position:relative;padding:10px 15px;border-radius:18px;background:#fff;color:#1a1423;font-weight:900;font-size:15px;white-space:nowrap;border:3px solid #1a1423;box-shadow:0 4px 0 #1a1423;transform-origin:20% 100%}
+#bubble .in::after{content:"";position:absolute;left:22px;bottom:-11px;width:16px;height:16px;background:#fff;border-right:3px solid #1a1423;border-bottom:3px solid #1a1423;transform:rotate(45deg)}
+#bubble .in.pop{animation:bubblePop .55s cubic-bezier(.2,1.6,.4,1)}
+@keyframes bubblePop{0%{transform:scale(.3)}100%{transform:scale(1)}}
+#combo{position:absolute;right:18px;top:34%;text-align:center;font-family:var(--display);font-style:italic;color:#fff;-webkit-text-stroke:2.5px #1a1423;paint-order:stroke fill;text-shadow:4px 5px 0 #FF4D6D;line-height:1;pointer-events:none;opacity:0;transform:rotate(-10deg)}
+#combo b{display:block;font-size:56px;font-weight:400}
+#combo i{display:block;font-size:20px;letter-spacing:2px;font-style:italic}
+#combo.go{animation:comboPop 1.3s ease-out forwards}
+@keyframes comboPop{0%{opacity:1;transform:rotate(-10deg) scale(.4)}10%{transform:rotate(-10deg) scale(1.5)}22%{transform:rotate(-10deg) scale(1)}75%{opacity:1}100%{opacity:0;transform:rotate(-10deg) scale(.9) translateY(-14px)}}
+#toast{position:absolute;left:50%;top:14px;transform:translate(-50%,-120px);display:flex;align-items:center;gap:8px;padding:12px 18px;border-radius:999px;background:var(--calm);color:#0f2a20;font-weight:900;font-size:14px;white-space:nowrap;box-shadow:0 8px 24px rgba(0,0,0,.4);transition:transform .6s cubic-bezier(.2,1.5,.4,1);pointer-events:none}
+#toast.show{transform:translate(-50%,0)}
+.composer{position:absolute;left:0;right:0;bottom:0;padding:16px 16px calc(18px + env(safe-area-inset-bottom));border-radius:26px 26px 0 0;background:var(--panel);box-shadow:0 -10px 30px rgba(0,0,0,.45);display:flex;flex-direction:column;gap:12px}
+.hint{margin:0;font-size:13px;color:var(--muted);display:flex;justify-content:space-between;gap:8px}
+.hint b{color:var(--accent);font-variant-numeric:tabular-nums}
+.inrow{display:flex;gap:10px;align-items:center}
+.field{position:relative;flex:1;min-width:0;height:56px;border-radius:28px;border:2px solid var(--line);background:var(--field);overflow:hidden}
+.field:focus-within{border-color:var(--accent)}
+.field.locked{border-color:var(--calm)}
+#mirror,#msg{position:absolute;inset:0;padding:0 20px;font-family:var(--body);font-size:17px;line-height:52px;letter-spacing:0;white-space:pre;border:0;margin:0}
+#mirror{color:var(--ink);overflow:hidden;pointer-events:none}
+#mirror .fly{color:#fff;text-shadow:0 0 10px rgba(255,210,63,.9)}
+#mirror .hit{color:var(--accent);font-weight:700}
+#mirror .ph{color:#8f87a0}
+#msg{width:100%;background:transparent;color:transparent;caret-color:var(--accent);outline:none}
+#msg:disabled{cursor:default}
+#send{flex:none;width:56px;height:56px;border-radius:28px;border:none;background:var(--accent);color:#1a1423;display:flex;align-items:center;justify-content:center;cursor:pointer;box-shadow:0 4px 0 #1a1423}
+#send:disabled{opacity:.4;cursor:default}
+#send.ready{animation:ready 1s ease-in-out infinite}
+@keyframes ready{50%{transform:scale(1.1)}}
+.btns{display:flex;gap:10px}
+.throws{display:flex;gap:10px}
+.wok-meter{margin:-4px 0 0;font-size:12px;color:var(--muted);text-align:center}
+.wok-meter b{color:var(--accent);font-variant-numeric:tabular-nums}
+.throw{flex:1;height:50px;border-radius:25px;border:none;font-family:var(--body);font-weight:900;font-size:16px;cursor:pointer;box-shadow:0 4px 0 #1a1423;transition:transform .08s}
+.throw:disabled{opacity:.4;cursor:default}
+.throw:active{transform:translateY(3px);box-shadow:0 1px 0 #1a1423}
+.throw.tomato{background:#e5332a;color:#fff}
+.throw.egg{background:#fff6e2;color:#1a1423}
+.throw[aria-pressed='true']{outline:3px solid var(--accent);outline-offset:3px;transform:translateY(2px);box-shadow:0 2px 0 #1a1423}
+#c.aiming{cursor:crosshair}
+.btn{flex:1;height:46px;border-radius:23px;border:2px solid var(--line);background:transparent;color:var(--ink);font-family:var(--body);font-weight:700;font-size:14px;cursor:pointer}
+.sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+#fail{position:absolute;inset:0;display:none;align-items:center;justify-content:center;padding:32px;text-align:center;color:var(--muted)}
+@media (prefers-reduced-motion: reduce){#combo.go{animation-duration:.01s}#send.ready{animation:none}}
+</style>
+</head>
+<body>
+<div id="app">
+  <canvas id="c" aria-label="윗집 이웃 캐릭터에게 메시지 단어가 날아가는 3D 장면" role="img"></canvas>
+  <div id="vignette"></div>
+  <div id="fail">이 브라우저에서는 3D 화면을 띄울 수 없어요. WebGL이 켜진 브라우저에서 열어주세요.</div>
+
+  <div class="top">
+    <div class="bar">
+      <button class="icon-btn" id="back" aria-label="화풀기 닫기">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 5l-7 7 7 7"/></svg>
+      </button>
+      <div class="title"><b id="ttl">윗집에 한마디</b><span>화풀이 전용 · 실제로는 전달되지 않아요</span></div>
+      <button class="icon-btn" id="sound" aria-label="효과음 끄기" aria-pressed="true">
+        <svg id="sndOn" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 9v6h4l5 4V5L8 9z"/><path d="M16.5 8.5a5 5 0 0 1 0 7"/><path d="M19 6a8.5 8.5 0 0 1 0 12"/></svg>
+        <svg id="sndOff" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="display:none"><path d="M4 9v6h4l5 4V5L8 9z"/><path d="M17 9l5 6M22 9l-5 6"/></svg>
+      </button>
+    </div>
+    <div class="gauge">
+      <div class="row"><span>윗집 기분</span><b id="mood">폭발 직전 · 100</b></div>
+      <div class="track"><div id="fill"></div></div>
+      <div class="spin-hint">↔ 좌우로 드래그하면 돌아가요 · 뒤통수도 맞힐 수 있어요</div>
+    </div>
+  </div>
+
+  <div id="bubble"><div class="in" id="bubbleIn">뭐요?! 나 가만히 있었는데!</div></div>
+  <div id="combo" aria-hidden="true"><b id="comboN">2</b><i>COMBO</i></div>
+  <div id="toast" role="status">
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12l5 5 9-10"/></svg>
+    후련하죠? 실제로는 아무에게도 안 보냈어요
+  </div>
+
+  <div class="composer">
+    <p class="hint"><span id="hintText">띄어쓰기를 누를 때마다 단어가 날아가요</span><span>명중 <b id="hitCount">0</b></span></p>
+    <div class="inrow">
+      <div class="field" id="field">
+        <div id="mirror" aria-hidden="true"><span class="ph">조용히 해달라고 말해보세요</span></div>
+        <label for="msg" class="sr">윗집에 보낼 메시지</label>
+        <input id="msg" type="text" autocomplete="off" autocapitalize="off" spellcheck="false" enterkeyhint="send">
+      </div>
+      <button id="send" aria-label="메시지 보내기" disabled>
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 3L10 14"/><path d="M21 3l-7 18-4-7-7-4z"/></svg>
+      </button>
+    </div>
+    <div class="throws">
+      <button class="throw tomato" id="throwTomato" aria-label="토마토 던지기">🍅 토마토</button>
+      <button class="throw egg" id="throwEgg" aria-label="계란 던지기">🥚 계란</button>
+    </div>
+    <p class="wok-meter" id="wokMeter">🍳 토마토·계란 10개 맞히면 토계볶! <b id="wokN">0</b>/10</p>
+    <div class="btns">
+      <button class="btn" id="demo">자동 시연 보기</button>
+      <button class="btn" id="reset">처음부터</button>
+    </div>
+  </div>
+</div>
+
+<script type="module">
+import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js';
+
+const $ = (s) => document.querySelector(s);
+const app = $('#app'), canvas = $('#c'), input = $('#msg'), mirror = $('#mirror');
+const ACCENT = '#FFD23F', INK = '#1a1423';
+// 쉿!그널 앱에서 열 때 넘겨주는 호수 (?to=윗집, ?from=우리 집). 숫자·영문·-만 받는다
+const qs = new URLSearchParams(location.search);
+const unitParam = (k, d) => (/^[0-9A-Za-z-]{1,8}$/.test(qs.get(k) || '') ? qs.get(k) : d);
+const TO = unitParam('to', '윗집'), FROM = unitParam('from', '우리 집');
+$('#ttl').textContent = TO === '윗집' ? '윗집에 한마디' : `${TO}호에 한마디`;
+// 닫기: 앱(부모 창)에 알린다
+$('#back').addEventListener('click', () => parent !== window ? parent.postMessage({ type: 'vent-close' }, location.origin) : history.back());
+const L = (a, b, k) => a + (b - a) * k;
+const C = (x) => Math.max(0, Math.min(1, x));
+const rnd = (a, b) => a + Math.random() * (b - a);
+const reduceMotion = matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+/* ---------- renderer ---------- */
+let renderer;
+try {
+  renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
+} catch (e) {
+  $('#fail').style.display = 'flex';
+  throw e;
+}
+renderer.setPixelRatio(Math.min(2, window.devicePixelRatio || 1));
+const scene = new THREE.Scene();
+scene.fog = new THREE.Fog(0x1a0f1c, 14, 34);
+const camera = new THREE.PerspectiveCamera(50, 1, 0.1, 100);
+const CAM = new THREE.Vector3(0, 0.4, 10);
+const LOOK = new THREE.Vector3(0, 1.2, 0);
+
+function resize() {
+  const w = app.clientWidth, h = app.clientHeight;
+  renderer.setSize(w, h, false);
+  camera.aspect = w / h;
+  CAM.z = Math.max(9, 4.7 / (2 * Math.tan(THREE.MathUtils.degToRad(25)) * camera.aspect));
+  camera.updateProjectionMatrix();
+}
+addEventListener('resize', resize);
+
+/* ---------- materials ---------- */
+const grad = new THREE.DataTexture(new Uint8Array([70, 70, 70, 255, 160, 160, 160, 255, 255, 255, 255, 255]), 3, 1);
+grad.minFilter = grad.magFilter = THREE.NearestFilter; grad.needsUpdate = true;
+const toon = (c) => new THREE.MeshToonMaterial({ color: c, gradientMap: grad });
+const darkMat = new THREE.MeshBasicMaterial({ color: 0x2a1d2e });
+const outlineMat = new THREE.MeshBasicMaterial({ color: 0x1a1423, side: THREE.BackSide });
+function outline(mesh, s = 1.05) {
+  const o = new THREE.Mesh(mesh.geometry, outlineMat);
+  o.scale.setScalar(s);
+  mesh.add(o);
+  return mesh;
+}
+
+/* ---------- canvas textures (Korean fonts load lazily, so redraw when ready) ---------- */
+function fontsFor(text) {
+  if (!document.fonts || !document.fonts.load) return Promise.resolve();
+  return Promise.all([
+    document.fonts.load('100px "Black Han Sans"', text),
+    document.fonts.load('700 100px "Noto Sans KR"', text)
+  ]).catch(() => {});
+}
+function liveTexture(w, h, draw, text) {
+  const c = document.createElement('canvas');
+  c.width = w; c.height = h;
+  const ctx = c.getContext('2d');
+  draw(ctx, w, h);
+  const tex = new THREE.CanvasTexture(c);
+  tex.colorSpace = THREE.SRGBColorSpace;
+  tex.anisotropy = 4;
+  if (text) fontsFor(text).then(() => { ctx.clearRect(0, 0, w, h); draw(ctx, w, h); tex.needsUpdate = true; });
+  return tex;
+}
+const measureCtx = document.createElement('canvas').getContext('2d');
+function measure(text, font) { measureCtx.font = font; return measureCtx.measureText(text).width; }
+function fitFont(ctx, text, px, family, maxW, weight = '') {
+  let size = px;
+  ctx.font = `${weight} ${size}px ${family}`;
+  const w = ctx.measureText(text).width;
+  if (w > maxW) { size = Math.floor(size * maxW / w); ctx.font = `${weight} ${size}px ${family}`; }
+  return size;
+}
+
+function chipTexture(text, bg = ACCENT) {
+  const px = 96, pad = 38;
+  const W = Math.ceil(measure(text, `${px}px "Black Han Sans", sans-serif`) * 1.12 + pad * 2);
+  const H = 150;
+  const tex = liveTexture(W, H, (ctx) => {
+    ctx.fillStyle = bg; ctx.fillRect(0, 0, W, H);
+    ctx.lineWidth = 12; ctx.strokeStyle = INK; ctx.strokeRect(6, 6, W - 12, H - 12);
+    fitFont(ctx, text, px, '"Black Han Sans", sans-serif', W - pad * 2);
+    ctx.fillStyle = INK; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.fillText(text, W / 2, H / 2 + 6);
+  }, text);
+  return { tex, aspect: W / H };
+}
+function labelTexture(text, { px = 120, fill = ACCENT, stroke = INK, sw = 18 } = {}) {
+  const W = Math.ceil(measure(text, `${px}px "Black Han Sans", sans-serif`) * 1.15 + sw * 2 + 30);
+  const H = Math.ceil(px * 1.55);
+  const tex = liveTexture(W, H, (ctx) => {
+    fitFont(ctx, text, px, '"Black Han Sans", sans-serif', W - sw * 2 - 20);
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.lineJoin = 'round';
+    ctx.lineWidth = sw; ctx.strokeStyle = stroke;
+    ctx.fillStyle = stroke; ctx.fillText(text, W / 2 + 4, H / 2 + 10);
+    ctx.strokeText(text, W / 2, H / 2);
+    ctx.fillStyle = fill; ctx.fillText(text, W / 2, H / 2);
+  }, text);
+  return { tex, aspect: W / H };
+}
+function cardTexture(text) {
+  const W = 640, pad = 44, lh = 54;
+  measureCtx.font = '700 38px "Noto Sans KR", sans-serif';
+  const lines = []; let line = '';
+  for (const word of text.split(' ')) {
+    const t = line ? line + ' ' + word : word;
+    if (measureCtx.measureText(t).width > W - pad * 2 && line) { lines.push(line); line = word; } else line = t;
+  }
+  if (line) lines.push(line);
+  const shown = lines.slice(0, 5);
+  if (lines.length > 5) shown[4] = shown[4] + '…';
+  const H = pad * 2 + shown.length * lh + 40;
+  const tex = liveTexture(W, H, (ctx) => {
+    ctx.fillStyle = '#fff'; ctx.fillRect(0, 0, W, H);
+    ctx.lineWidth = 12; ctx.strokeStyle = INK; ctx.strokeRect(6, 6, W - 12, H - 12);
+    ctx.fillStyle = '#7a7088'; ctx.font = '700 24px "Noto Sans KR", sans-serif';
+    ctx.fillText(FROM === '우리 집' ? '우리 집의 한마디' : `${FROM}호의 한마디`, pad, pad + 6);
+    ctx.fillStyle = INK; ctx.font = '700 38px "Noto Sans KR", sans-serif'; ctx.textBaseline = 'top';
+    shown.forEach((l, i) => ctx.fillText(l, pad, pad + 34 + i * lh));
+  }, text);
+  return { tex, aspect: W / H };
+}
+function dotTexture() {
+  const c = document.createElement('canvas'); c.width = c.height = 64;
+  const g = c.getContext('2d'); const r = g.createRadialGradient(32, 32, 0, 32, 32, 32);
+  r.addColorStop(0, 'rgba(255,255,255,1)'); r.addColorStop(.4, 'rgba(255,255,255,.8)'); r.addColorStop(1, 'rgba(255,255,255,0)');
+  g.fillStyle = r; g.fillRect(0, 0, 64, 64);
+  const t = new THREE.CanvasTexture(c); return t;
+}
+function heartTexture() {
+  const c = document.createElement('canvas'); c.width = c.height = 128;
+  const g = c.getContext('2d');
+  g.translate(64, 70); g.beginPath();
+  g.moveTo(0, 38); g.bezierCurveTo(-60, -4, -40, -52, 0, -22); g.bezierCurveTo(40, -52, 60, -4, 0, 38); g.closePath();
+  g.lineWidth = 10; g.strokeStyle = INK; g.stroke(); g.fillStyle = '#ff6f93'; g.fill();
+  const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; return t;
+}
+function veinTexture() {
+  const c = document.createElement('canvas'); c.width = c.height = 128;
+  const g = c.getContext('2d'); g.translate(64, 64); g.strokeStyle = '#e0182d'; g.lineWidth = 13; g.lineCap = 'round';
+  for (let i = 0; i < 4; i++) { g.save(); g.rotate(i * Math.PI / 2); g.beginPath(); g.moveTo(-46, -12); g.quadraticCurveTo(-12, -12, -12, -46); g.stroke(); g.restore(); }
+  const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; return t;
+}
+const DOT = dotTexture(), HEART = heartTexture(), VEIN = veinTexture();
+
+/* ---------- world ---------- */
+const bgCalm = new THREE.Color().setHSL(236 / 360, .38, .12, THREE.SRGBColorSpace);
+const bgRage = new THREE.Color().setHSL(350 / 360, .45, .11, THREE.SRGBColorSpace);
+scene.background = bgRage.clone();
+
+const stars = (() => {
+  const g = new THREE.BufferGeometry(); const p = [];
+  for (let i = 0; i < 260; i++) p.push(rnd(-22, 22), rnd(4, 22), rnd(-18, -8));
+  g.setAttribute('position', new THREE.Float32BufferAttribute(p, 3));
+  const m = new THREE.PointsMaterial({ color: 0xffffff, size: 0.07, transparent: true, opacity: .8, fog: false });
+  return new THREE.Points(g, m);
+})();
+scene.add(stars);
+
+scene.add(new THREE.HemisphereLight(0x9aa0ff, 0x2a1020, 1.1));
+const key = new THREE.DirectionalLight(0xffffff, 2.2); key.position.set(3, 5, 7); scene.add(key);
+const roomLight = new THREE.PointLight(0xff6040, 6, 9, 1); roomLight.position.set(0, 2.4, -1.2); scene.add(roomLight);
+
+// facade with a window opening at x[-1.5,1.5], y[0.9,3.7]
+const SILL = 0.9, TOP = 3.7, HALF = 1.5;
+const wallMat = toon(0x3a2c4a);
+const wallParts = [
+  [-(HALF + 3.5), 3, 7, 26], [HALF + 3.5, 3, 7, 26],
+  [0, (TOP + 16) / 2, HALF * 2, 16 - TOP], [0, (SILL - 10) / 2, HALF * 2, SILL + 10]
+];
+for (const [x, y, w, h] of wallParts) {
+  const m = new THREE.Mesh(new THREE.BoxGeometry(w, h, 0.6), wallMat); m.position.set(x, y, -0.3); scene.add(m);
+}
+const frameMat = toon(0x231c30);
+for (const [x, y, w, h] of [[0, TOP + 0.08, 3.3, 0.2], [-HALF - 0.08, (SILL + TOP) / 2, 0.2, TOP - SILL + 0.3], [HALF + 0.08, (SILL + TOP) / 2, 0.2, TOP - SILL + 0.3]]) {
+  const m = new THREE.Mesh(new THREE.BoxGeometry(w, h, 0.3), frameMat); m.position.set(x, y, 0.02); scene.add(m);
+}
+const sill = new THREE.Mesh(new THREE.BoxGeometry(3.6, 0.22, 0.75), toon(0x4a3c60)); sill.position.set(0, SILL, 0.18); outline(sill, 1.02); scene.add(sill);
+const roomMat = new THREE.MeshBasicMaterial({ color: 0xff8a50 });
+const room = new THREE.Mesh(new THREE.PlaneGeometry(3.2, 3.2), roomMat); room.position.set(0, (SILL + TOP) / 2, -2.2); scene.add(room);
+const curtainMat = toon(0xc9506a);
+for (const s of [-1, 1]) {
+  const cu = new THREE.Mesh(new THREE.BoxGeometry(0.55, 1.9, 0.08), curtainMat);
+  cu.position.set(s * 1.2, TOP - 0.95, -0.25); scene.add(cu);
+}
+// other apartments: lights switch on as the noise fight escalates
+const windows = [];
+for (const x of [-5.4, -3.1, 3.1, 5.4]) for (const y of [-2.6, 2.3, 7.2]) windows.push([x, y]);
+windows.push([0, -2.6], [0, 7.2]);
+const winObjs = windows.map(([x, y]) => {
+  const m = new THREE.Mesh(new THREE.PlaneGeometry(1.5, 1.9), new THREE.MeshBasicMaterial({ color: 0x1d1828 }));
+  m.position.set(x, y, 0.005); scene.add(m);
+  const f = new THREE.Mesh(new THREE.PlaneGeometry(1.75, 2.15), new THREE.MeshBasicMaterial({ color: 0x231c30 }));
+  f.position.set(x, y, 0.002); scene.add(f);
+  const mine = x === 0 && y < 0;
+  return { m, th: mine ? -1 : rnd(0.25, 0.95), lit: 0 };
+});
+const litOn = new THREE.Color('#ffd98a'), litOff = new THREE.Color('#1d1828');
+const plate = (() => {
+  const { tex, aspect } = labelTexture(TO, { px: 70, fill: '#f4efe6', sw: 12 });
+  const s = new THREE.Sprite(new THREE.SpriteMaterial({ map: tex })); s.scale.set(0.42 * aspect, 0.42, 1); s.position.set(-1.05, TOP + 0.42, 0.3); scene.add(s); return s;
+})();
+
+/* ---------- character: the upstairs neighbour ---------- */
+const skin = toon(0xff5a3c);
+const charRoot = new THREE.Group(); scene.add(charRoot);
+const SPIN_Z = -0.9; // 몸통 가운데를 축으로 돈다 (돌아도 몸이 창틀 밖으로 안 나오게)
+const spin = new THREE.Group(); spin.position.z = SPIN_Z; charRoot.add(spin);
+const body = outline(new THREE.Mesh(new THREE.CapsuleGeometry(0.72, 0.7, 8, 24), toon(0x5161d8)), 1.04);
+body.position.set(0, 0.55, -0.9 - SPIN_Z); spin.add(body);
+const collar = new THREE.Mesh(new THREE.TorusGeometry(0.34, 0.06, 8, 24, Math.PI), toon(0x2b3590));
+collar.rotation.set(Math.PI / 2 + .2, 0, Math.PI); collar.position.set(0, 1.27, -0.55 - SPIN_Z); spin.add(collar);
+
+const head = new THREE.Group(); head.position.set(0, 2.15, -0.45 - SPIN_Z); spin.add(head);
+const hi = new THREE.Group(); head.add(hi);
+const skull = outline(new THREE.Mesh(new THREE.SphereGeometry(0.85, 48, 32), skin), 1.045);
+skull.scale.set(1, 0.96, 0.92); hi.add(skull);
+const hair = new THREE.Mesh(new THREE.TorusGeometry(0.16, 0.06, 10, 24, Math.PI * 1.4), darkMat);
+hair.position.set(0.05, 0.86, 0.12); hair.rotation.set(0, 0, 0.4); hi.add(hair);
+const hair2 = new THREE.Mesh(new THREE.SphereGeometry(0.1, 16, 12), darkMat); hair2.position.set(-0.12, 0.83, 0.1); hi.add(hair2);
+
+// 귀와 뒤통수 가마 (돌렸을 때 옆·뒷모습)
+const ears = [-1, 1].map((s) => {
+  const ear = outline(new THREE.Mesh(new THREE.SphereGeometry(0.17, 20, 14), skin), 1.1);
+  ear.scale.set(0.55, 1, 0.8); ear.position.set(s * 0.83, 0.02, -0.02); hi.add(ear); return ear;
+});
+const whorl = new THREE.Mesh(new THREE.TorusGeometry(0.12, 0.035, 8, 24, Math.PI * 1.6), darkMat);
+whorl.position.set(0, 0.5, -0.66); whorl.rotation.set(Math.PI * 0.85, 0, 0.6); hi.add(whorl);
+const backHair = new THREE.Mesh(new THREE.SphereGeometry(0.05, 12, 10), darkMat); backHair.position.set(0, 0.5, -0.7); hi.add(backHair);
+
+const eyeWhiteMat = toon(0xffffff);
+function makeEye(x) {
+  const g = new THREE.Group(); g.position.set(x, 0.12, 0.66);
+  const w = new THREE.Mesh(new THREE.SphereGeometry(0.17, 24, 16), eyeWhiteMat); w.scale.z = 0.55; outline(w, 1.12); g.add(w);
+  const p = new THREE.Mesh(new THREE.SphereGeometry(0.075, 16, 12), darkMat); p.position.set(0, -0.01, 0.09); g.add(p);
+  hi.add(g); return { g, p };
+}
+const eyeL = makeEye(-0.3), eyeR = makeEye(0.3);
+function makeArcs(x) {
+  const m = new THREE.Mesh(new THREE.TorusGeometry(0.13, 0.04, 8, 24, Math.PI), darkMat);
+  m.position.set(x, 0.08, 0.76); hi.add(m); return m;
+}
+const happyL = makeArcs(-0.3), happyR = makeArcs(0.3);
+function makeHitEye(x, dir) {
+  const g = new THREE.Group(); g.position.set(x, 0.12, 0.76);
+  const geo = new THREE.CapsuleGeometry(0.035, 0.17, 4, 8);
+  const a = new THREE.Mesh(geo, darkMat), b = new THREE.Mesh(geo, darkMat);
+  a.rotation.z = Math.PI / 2 - dir * 0.46; a.position.y = 0.05;
+  b.rotation.z = Math.PI / 2 + dir * 0.46; b.position.y = -0.05;
+  g.add(a, b); hi.add(g); return g;
+}
+const hitL = makeHitEye(-0.3, 1), hitR = makeHitEye(0.3, -1);
+function makeBrow(x) {
+  const g = new THREE.Group(); g.position.set(x, 0.42, 0.66);
+  const m = new THREE.Mesh(new THREE.CapsuleGeometry(0.05, 0.3, 4, 10), darkMat); m.rotation.z = Math.PI / 2; g.add(m);
+  hi.add(g); return g;
+}
+const browL = makeBrow(-0.3), browR = makeBrow(0.3);
+const mouth = new THREE.Mesh(new THREE.TorusGeometry(0.2, 0.048, 8, 28, Math.PI), darkMat); mouth.position.set(0, -0.33, 0.74); hi.add(mouth);
+const teethTex = liveTexture(256, 100, (g, w, h) => {
+  g.fillStyle = '#fff'; g.fillRect(0, 0, w, h); g.strokeStyle = INK; g.lineWidth = 8;
+  g.strokeRect(4, 4, w - 8, h - 8); g.beginPath(); g.moveTo(0, h / 2); g.lineTo(w, h / 2);
+  for (let i = 1; i < 4; i++) { g.moveTo(i * w / 4, 0); g.lineTo(i * w / 4, h); } g.stroke();
+});
+const teeth = new THREE.Mesh(new THREE.BoxGeometry(0.56, 0.22, 0.06), [eyeWhiteMat, eyeWhiteMat, eyeWhiteMat, eyeWhiteMat, new THREE.MeshBasicMaterial({ map: teethTex }), eyeWhiteMat]);
+teeth.position.set(0, -0.33, 0.74); teeth.rotation.x = -0.25; hi.add(teeth);
+const smile = new THREE.Group(); smile.position.set(0, -0.25, 0.77); smile.rotation.x = -0.2; hi.add(smile);
+smile.add(new THREE.Mesh(new THREE.CircleGeometry(0.25, 32, Math.PI, Math.PI), darkMat));
+const tongue = new THREE.Mesh(new THREE.CircleGeometry(0.13, 24, Math.PI, Math.PI), new THREE.MeshBasicMaterial({ color: 0xff6f93 }));
+tongue.position.set(0, -0.11, 0.005); tongue.scale.y = 0.8; smile.add(tongue);
+const blushMat = new THREE.MeshBasicMaterial({ color: 0xff6f93, transparent: true, opacity: 0 });
+for (const s of [-1, 1]) {
+  const b = new THREE.Mesh(new THREE.CircleGeometry(0.15, 24), blushMat);
+  b.position.set(s * 0.52, -0.12, 0.6); b.rotation.y = s * 0.62; b.scale.y = 0.6; hi.add(b);
+}
+const vein = new THREE.Sprite(new THREE.SpriteMaterial({ map: VEIN, transparent: true })); vein.position.set(0.55, 0.62, 0.5); vein.scale.setScalar(0.38); hi.add(vein);
+const sweat = new THREE.Mesh(new THREE.SphereGeometry(0.075, 16, 12), toon(0x8fd8ff)); sweat.scale.set(1, 1.5, 1); outline(sweat, 1.15); hi.add(sweat);
+const fists = [-1, 1].map((s) => {
+  const f = outline(new THREE.Mesh(new THREE.SphereGeometry(0.24, 24, 16), skin), 1.08);
+  f.position.set(s * 1.05, SILL + 0.3, 0.1); charRoot.add(f); return f; // 주먹은 창틀에 그대로 (뒤돌면 숨김)
+});
+
+// ambient FX pools
+const steam = Array.from({ length: 8 }, () => {
+  const s = new THREE.Sprite(new THREE.SpriteMaterial({ map: DOT, transparent: true, depthWrite: false, opacity: 0 }));
+  scene.add(s); return s;
+});
+const kungs = [[-1.95, 3.3, -0.25], [1.95, 2.6, 0.2], [-1.95, 1.5, 0.15], [1.95, 4.3, -0.15]].map(([x, y, r]) => {
+  const { tex, aspect } = labelTexture('쿵!', { px: 110, fill: '#ff8a8a', stroke: '#2a0d16', sw: 16 });
+  const s = new THREE.Sprite(new THREE.SpriteMaterial({ map: tex, transparent: true, opacity: 0, depthWrite: false }));
+  s.material.rotation = r; s.position.set(x, y, 0.4); s.userData = { aspect }; scene.add(s); return s;
+});
+
+/* ---------- sound (synthesised, starts on first key or tap) ---------- */
+let ac = null, muted = false;
+function audio() {
+  if (!ac) { try { ac = new (window.AudioContext || window.webkitAudioContext)(); } catch (e) { return null; } }
+  if (ac.state === 'suspended') ac.resume().catch(() => {});
+  return ac;
+}
+function noise(a, dur) {
+  const n = Math.floor(dur * a.sampleRate), buf = a.createBuffer(1, n, a.sampleRate), d = buf.getChannelData(0);
+  for (let i = 0; i < n; i++) d[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / n, 2);
+  const s = a.createBufferSource(); s.buffer = buf; return s;
+}
+function thump(power) {
+  const a = audio(); if (!a || muted) return; const t = a.currentTime;
+  const o = a.createOscillator(), g = a.createGain();
+  o.frequency.setValueAtTime(170 + power * 12, t); o.frequency.exponentialRampToValueAtTime(42, t + 0.2);
+  g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(0.8, t + 0.006); g.gain.exponentialRampToValueAtTime(0.0001, t + 0.28);
+  o.connect(g).connect(a.destination); o.start(t); o.stop(t + 0.3);
+  const n = noise(a, 0.14), f = a.createBiquadFilter(), ng = a.createGain();
+  f.type = 'bandpass'; f.frequency.value = 1400 + power * 60; f.Q.value = 0.7; ng.gain.value = 0.55;
+  n.connect(f).connect(ng).connect(a.destination); n.start(t);
+}
+function whoosh() {
+  const a = audio(); if (!a || muted) return; const t = a.currentTime;
+  const n = noise(a, 0.3), f = a.createBiquadFilter(), g = a.createGain();
+  f.type = 'bandpass'; f.Q.value = 1.4; f.frequency.setValueAtTime(500, t); f.frequency.exponentialRampToValueAtTime(2600, t + 0.25);
+  g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(0.18, t + 0.08); g.gain.exponentialRampToValueAtTime(0.0001, t + 0.3);
+  n.connect(f).connect(g).connect(a.destination); n.start(t);
+}
+function chime() {
+  const a = audio(); if (!a || muted) return; const t = a.currentTime;
+  [523, 659, 784, 1047, 1319].forEach((fr, i) => {
+    const o = a.createOscillator(), g = a.createGain(); o.type = 'triangle'; o.frequency.value = fr;
+    const s = t + i * 0.08; g.gain.setValueAtTime(0.0001, s); g.gain.exponentialRampToValueAtTime(0.25, s + 0.02); g.gain.exponentialRampToValueAtTime(0.0001, s + 0.6);
+    o.connect(g).connect(a.destination); o.start(s); o.stop(s + 0.7);
+  });
+}
+// 앱(부모 창)에 화풀기 기록을 알린다 → 관리사무소 현황판 집계 (실제 이웃에게는 아무것도 안 간다)
+function report(msg) { if (parent !== window) parent.postMessage(msg, location.origin); }
+
+/* ---------- 토마토·계란 ---------- */
+const ITEM = {
+  tomato: { pops: ['철퍽!', '토마토 퍽!', '찰싹!'], trail: 0xff5a4a, splash: [0xe5332a, 0xc41f17, 0xff7a5c, 0xf7c26b] },
+  egg: { pops: ['빠직!', '계란 퍽!', '철퍼덕!'], trail: 0xfff3d6, splash: [0xfffdf4, 0xffc21a, 0xfff0b0, 0xffffff] },
+};
+const SPLAT_LIFE = 3; // 얼룩이 남는 시간(초), 마지막 0.8초 동안 사라진다
+const TOMATO_GEO = new THREE.SphereGeometry(0.22, 24, 18), TOMATO_MAT = toon(0xe5332a);
+const STEM_GEO = new THREE.ConeGeometry(0.09, 0.07, 5), STEM_MAT = toon(0x3c9a3c);
+const EGG_GEO = new THREE.SphereGeometry(0.17, 24, 18), EGG_MAT = toon(0xfff3dc);
+function makeItem(kind) {
+  const g = new THREE.Group();
+  if (kind === 'tomato') {
+    g.add(outline(new THREE.Mesh(TOMATO_GEO, TOMATO_MAT), 1.08));
+    const stem = new THREE.Mesh(STEM_GEO, STEM_MAT); stem.position.y = 0.21; stem.rotation.x = Math.PI; g.add(stem);
+  } else {
+    const egg = outline(new THREE.Mesh(EGG_GEO, EGG_MAT), 1.1); egg.scale.set(0.82, 1.08, 0.82); g.add(egg);
+  }
+  g.userData.own = []; // 모양·재질은 같이 쓰므로 버리지 않는다
+  return g;
+}
+// 얼룩 그림: 던질 때마다 모양이 조금씩 다르다
+function splatTexture(kind) {
+  const c = document.createElement('canvas'); c.width = c.height = 256;
+  const g = c.getContext('2d'); g.translate(128, 128);
+  const blob = (r, n, jitter) => {
+    g.beginPath();
+    for (let i = 0; i <= n; i++) {
+      const a = (i / n) * Math.PI * 2, rr = r * (1 - jitter / 2 + Math.random() * jitter);
+      i ? g.lineTo(Math.cos(a) * rr, Math.sin(a) * rr) : g.moveTo(Math.cos(a) * rr, Math.sin(a) * rr);
+    }
+    g.closePath();
+  };
+  if (kind === 'tomato') {
+    g.fillStyle = '#c41f17'; g.strokeStyle = '#4a0703'; g.lineWidth = 9;
+    blob(88, 22, 0.45); g.stroke(); g.fill();
+    for (let i = 0; i < 7; i++) { const a = rnd(0, Math.PI * 2), d = rnd(78, 112); g.beginPath(); g.arc(Math.cos(a) * d, Math.sin(a) * d, rnd(6, 14), 0, Math.PI * 2); g.stroke(); g.fill(); }
+    g.fillRect(-12, 40, 18, rnd(50, 80)); // 흘러내림
+    g.fillStyle = '#e5332a'; blob(60, 16, 0.4); g.fill();
+    g.fillStyle = 'rgba(255,190,170,.8)'; g.beginPath(); g.ellipse(-22, -24, 16, 9, -0.6, 0, Math.PI * 2); g.fill(); // 물기 반짝
+    g.fillStyle = '#f7c26b';
+    for (let i = 0; i < 9; i++) { g.save(); g.rotate(rnd(0, 6.3)); g.beginPath(); g.ellipse(rnd(10, 45), 0, 7, 4, 0, 0, Math.PI * 2); g.fill(); g.restore(); }
+  } else {
+    g.fillStyle = 'rgba(255,253,244,.95)'; g.strokeStyle = 'rgba(26,20,35,.25)'; g.lineWidth = 6; blob(92, 20, 0.5); g.fill(); g.stroke();
+    g.fillRect(-14, 50, 20, rnd(40, 70));
+    g.fillStyle = '#ffc21a'; g.beginPath(); g.arc(rnd(-10, 10), rnd(-10, 10), 36, 0, Math.PI * 2); g.fill();
+    g.fillStyle = 'rgba(255,255,255,.75)'; g.beginPath(); g.arc(-10, -12, 10, 0, Math.PI * 2); g.fill();
+    g.strokeStyle = '#f2e6c8'; g.lineWidth = 7; // 껍데기 조각
+    for (let i = 0; i < 5; i++) { const a = rnd(0, 6.3), d = rnd(60, 100); g.beginPath(); g.moveTo(Math.cos(a) * d, Math.sin(a) * d); g.lineTo(Math.cos(a) * d + rnd(-14, 14), Math.sin(a) * d + rnd(-14, 14)); g.stroke(); }
+  }
+  const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; return t;
+}
+const decals = [];
+const ray = new THREE.Raycaster();
+// aim: { obj, local, normal } — 누른 부위와 그 부위 기준 좌표 (부위가 움직여도 따라간다)
+function splat(kind, aim, hitPos) {
+  const tex = splatTexture(kind);
+  tex.center.set(0.5, 0.5);
+  const mat = new THREE.MeshBasicMaterial({ map: tex, transparent: true, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -4 });
+  let geo;
+  if (aim.obj === skull) {
+    // 머리: 평면 꼭짓점을 머리 표면(반지름 0.875)으로 붙여서 곡면 스티커처럼
+    const size = kind === 'tomato' ? rnd(0.95, 1.1) : rnd(0.85, 1.0);
+    geo = new THREE.PlaneGeometry(size, size, 14, 14);
+    const dir = aim.local.clone().normalize();
+    const q = new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(0, 0, 1), dir);
+    q.multiply(new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 0, 1), rnd(-0.6, 0.6)));
+    const pos = geo.attributes.position, v = new THREE.Vector3();
+    for (let i = 0; i < pos.count; i++) {
+      v.fromBufferAttribute(pos, i).applyQuaternion(q).addScaledVector(dir, 0.85).setLength(0.875);
+      pos.setXYZ(i, v.x, v.y, v.z);
+    }
+  } else {
+    // 몸통·귀·주먹: 맞은 면에 납작하게 붙인다
+    const size = aim.obj === body ? rnd(0.8, 0.95) : rnd(0.4, 0.5);
+    geo = new THREE.PlaneGeometry(size, size);
+    const q = new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(0, 0, 1), aim.normal);
+    q.multiply(new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 0, 1), rnd(-0.6, 0.6)));
+    geo.applyQuaternion(q);
+    geo.translate(...aim.local.clone().addScaledVector(aim.normal, 0.03).toArray());
+  }
+  geo.computeBoundingSphere();
+  const m = new THREE.Mesh(geo, mat);
+  m.renderOrder = 5;
+  aim.obj.add(m);
+  decals.push({ m, tex, born: S.T, own: [geo, mat, tex] });
+  // 튀는 과즙·노른자
+  const cols = ITEM[kind].splash;
+  for (let i = 0; i < 26; i++) {
+    const a = Math.random() * Math.PI * 2, sp = rnd(2, 6.5);
+    spark(hitPos, cols[i % cols.length], rnd(0.1, 0.24), new THREE.Vector3(Math.cos(a) * sp, Math.sin(a) * sp * 0.8 + 1.5, rnd(0.5, 3)), rnd(0.5, 0.9), 12, false);
+  }
+}
+function updateDecals() {
+  for (let i = decals.length - 1; i >= 0; i--) {
+    const d = decals[i], age = S.T - d.born;
+    if (age >= SPLAT_LIFE) { d.m.parent?.remove(d.m); d.own.forEach((r) => r.dispose()); decals.splice(i, 1); continue; }
+    const grow = Math.min(1, 0.25 + age * 8); // 철퍽 퍼지기 (텍스처를 키워서)
+    d.tex.repeat.set(1 / grow, 1 / grow);
+    d.tex.offset.y = Math.min(0.06, age * 0.02); // 천천히 흘러내림
+    d.m.material.opacity = age > SPLAT_LIFE - 0.8 ? (SPLAT_LIFE - age) / 0.8 : 1;
+  }
+}
+function clearDecals() { for (const d of decals) { d.m.parent?.remove(d.m); d.own.forEach((r) => r.dispose()); } decals.length = 0; }
+/* ---------- 효과음 (모두 합성, 효과음 끄기 버튼을 따른다) ---------- */
+function sfx() { const a = audio(); return a && !muted ? a : null; }
+// 일정 시간 동안 고르게 나는 백색 소음 (noise()는 점점 작아지는 버전)
+function flatNoise(a, dur) {
+  const n = Math.floor(dur * a.sampleRate), buf = a.createBuffer(1, n, a.sampleRate), d = buf.getChannelData(0);
+  for (let i = 0; i < n; i++) d[i] = Math.random() * 2 - 1;
+  const s = a.createBufferSource(); s.buffer = buf; return s;
+}
+function tone(a, { type = 'sine', f0, f1 = f0, at = 0, dur, gain = 0.3, attack = 0.005 }) {
+  const t = a.currentTime + at, o = a.createOscillator(), g = a.createGain();
+  o.type = type; o.frequency.setValueAtTime(f0, t); if (f1 !== f0) o.frequency.exponentialRampToValueAtTime(f1, t + dur);
+  g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(gain, t + attack); g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+  o.connect(g).connect(a.destination); o.start(t); o.stop(t + dur + 0.02);
+}
+function burst(a, { at = 0, dur, type = 'lowpass', f0, f1 = f0, q = 0.8, gain = 0.5 }) {
+  const t = a.currentTime + at, n = noise(a, dur), f = a.createBiquadFilter(), g = a.createGain();
+  f.type = type; f.Q.value = q; f.frequency.setValueAtTime(f0, t); if (f1 !== f0) f.frequency.exponentialRampToValueAtTime(f1, t + dur);
+  g.gain.setValueAtTime(gain, t); g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+  n.connect(f).connect(g).connect(a.destination); n.start(t);
+}
+// 던질 때: 손을 떠나는 "뽁" + 날아가는 "휙~"
+function throwSound(kind) {
+  const a = sfx(); if (!a) return;
+  const egg = kind === 'egg';
+  tone(a, { f0: egg ? 1100 : 750, f1: egg ? 1900 : 1300, dur: 0.07, gain: 0.25 });
+  burst(a, { at: 0.03, dur: 0.38, type: 'bandpass', f0: egg ? 700 : 450, f1: egg ? 3200 : 2400, q: 1.6, gain: 0.35 });
+}
+// 맞았을 때: 토마토 "퍽·철퍽·뚝뚝" / 계란 "빠지직·철퍼덕"
+function splatSound(kind) {
+  const a = sfx(); if (!a) return;
+  if (kind === 'tomato') {
+    tone(a, { f0: 170, f1: 55, dur: 0.18, gain: 0.7 });
+    burst(a, { dur: 0.3, f0: 1900, f1: 240, gain: 0.95 });
+    [0.17, 0.3, 0.46].forEach((at, i) => tone(a, { f0: 950 - i * 120, f1: 480 - i * 60, at, dur: 0.07, gain: 0.16 }));
+  } else {
+    [0, 0.018, 0.04, 0.07].forEach((at) => burst(a, { at, dur: 0.014, type: 'highpass', f0: 3200, gain: 0.6 }));
+    burst(a, { at: 0.05, dur: 0.34, f0: 2600, f1: 280, gain: 0.7 });
+    tone(a, { f0: 320, f1: 130, at: 0.08, dur: 0.2, gain: 0.25 });
+  }
+}
+// 웍: 쇠 프라이팬 "쾅~" (배음이 어긋난 금속 소리)
+function wokClang(gain = 0.22, base = 360) {
+  const a = sfx(); if (!a) return;
+  [1, 2.76, 5.4, 8.93].forEach((r, i) => tone(a, { type: i ? 'sine' : 'triangle', f0: base * r, dur: 0.9 - i * 0.15, gain: gain / (i + 1), attack: 0.002 }));
+  burst(a, { dur: 0.05, type: 'highpass', f0: 2500, gain: 0.3 });
+}
+// 웍질할 때 "챙"
+function wokToss() { wokClang(0.09, rnd(520, 640)); }
+// 지글지글: 고른 기름 소리 + 탁탁 튀는 소리
+// 완성: "짜잔~" 팡파르 + "딩"
+function fanfare() {
+  const a = sfx(); if (!a) return;
+  [523, 659, 784].forEach((f, i) => tone(a, { type: 'square', f0: f, at: i * 0.09, dur: 0.14, gain: 0.08 }));
+  [523, 659, 784, 1047].forEach((f) => tone(a, { type: 'triangle', f0: f, at: 0.3, dur: 0.9, gain: 0.12, attack: 0.02 }));
+  tone(a, { f0: 2093, at: 0.32, dur: 1.3, gain: 0.14, attack: 0.002 });
+  tone(a, { f0: 3136, at: 0.36, dur: 1.0, gain: 0.06, attack: 0.002 });
+}
+function throwItem(kind, aim) {
+  if (S.megaPending) return;
+  if (wok) { $('#hintText').textContent = '🍳 지글지글 볶는 중이에요. 잠깐만 기다려 주세요'; return; }
+  audio(); stopDemo();
+  const mesh = makeItem(kind); mesh.visible = false; scene.add(mesh);
+  const side = kind === 'tomato' ? -1 : 1; // 버튼 쪽에서 날아간다
+  projs.push({
+    mesh, item: kind, aim, word: '', len: 5, idx: -1,
+    start: screenPoint(side * rnd(0.25, 0.5), -0.78, 3.2),
+    off: new THREE.Vector3(),
+    t0: S.T, dur: 0.45, arc: rnd(1.2, 2.0), side: rnd(-0.8, 0.8), turns: side, wob: rnd(-1, 1), whooshed: false
+  });
+}
+
+// 토마토·계란에 맞았을 때: 반응·얼룩만 있고 기분 게이지는 그대로
+function itemImpact(p, hitPos) {
+  const k = reduceMotion ? 0.35 : 1;
+  const local = head.worldToLocal(hitPos.clone());
+  const dir = Math.sign(local.x) || 1;
+  S.sqv += 2.4 * k; S.rzv -= dir * 4 * k; S.kzv -= 2 * k;
+  if (p.aim.obj !== body) S.rxv -= 4 * k * (isBack() ? -1 : 1);
+  S.flash = 0.6; S.shake = 0.35 * k; S.punch = 0.6 * k;
+  S.freeze = reduceMotion ? 0 : 0.05;
+  ring(hitPos, ITEM[p.item].trail, 1.2);
+  const pops = ITEM[p.item].pops;
+  label(pops[Math.floor(Math.random() * pops.length)], hitPos.clone().add(new THREE.Vector3(rnd(-0.4, 0.4), 0.7, 0.6)), { px: 120 }, 0.95, 'pop', 0.75);
+  splat(p.item, p.aim, hitPos);
+  splatSound(p.item); buzz(22);
+  report({ type: 'vent-hit', kind: p.item });
+  if (!wok) {
+    S.thrown = (S.thrown || 0) + 1;
+    if (S.thrown >= WOK_AT) { S.thrown = 0; setTimeout(startWok, 350); }
+    $('#wokN').textContent = S.thrown;
+  }
+}
+
+// 화면을 누른 곳에 캐릭터가 있으면 그 부위를 돌려준다
+/* ---------- 토계볶: 토마토·계란 10개 맞히면 웍에서 보글보글 ---------- */
+const WOK_AT = 10;
+let wok = null;
+function foodTexture() {
+  const c = document.createElement('canvas'); c.width = c.height = 256;
+  const g = c.getContext('2d'); g.translate(128, 128);
+  g.fillStyle = '#e8622a'; g.beginPath(); g.arc(0, 0, 124, 0, Math.PI * 2); g.fill(); // 국물
+  for (let i = 0; i < 26; i++) { // 스크램블 계란
+    g.fillStyle = i % 3 ? '#ffd43b' : '#fff1a8'; g.beginPath();
+    g.ellipse(rnd(-95, 95), rnd(-95, 95), rnd(14, 26), rnd(10, 18), rnd(0, 3), 0, Math.PI * 2); g.fill();
+  }
+  for (let i = 0; i < 16; i++) { // 토마토 조각
+    g.fillStyle = i % 2 ? '#d62a1e' : '#f0492f'; g.save(); g.translate(rnd(-90, 90), rnd(-90, 90)); g.rotate(rnd(0, 3));
+    g.beginPath(); g.moveTo(-16, 0); g.quadraticCurveTo(0, -22, 16, 0); g.quadraticCurveTo(0, 8, -16, 0); g.fill(); g.restore();
+  }
+  g.fillStyle = '#4caf50'; // 파
+  for (let i = 0; i < 14; i++) { g.beginPath(); g.arc(rnd(-100, 100), rnd(-100, 100), 4, 0, Math.PI * 2); g.fill(); }
+  const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; return t;
+}
+// 완성 더미 겉면: 윤기 나는 토마토 소스에 큼직한 계란·토마토
+function dishTexture() {
+  const c = document.createElement('canvas'); c.width = c.height = 512;
+  const g = c.getContext('2d');
+  const grd = g.createLinearGradient(0, 0, 512, 512); grd.addColorStop(0, '#d9481f'); grd.addColorStop(1, '#f07a2e');
+  g.fillStyle = grd; g.fillRect(0, 0, 512, 512);
+  for (let i = 0; i < 70; i++) { // 계란
+    const x = rnd(0, 512), y = rnd(0, 512), w = rnd(18, 42), h = rnd(12, 28), r = rnd(0, 3);
+    g.fillStyle = '#fff4c2'; g.beginPath(); g.ellipse(x, y, w + 4, h + 4, r, 0, Math.PI * 2); g.fill();
+    g.fillStyle = i % 4 ? '#ffd23f' : '#ffe680'; g.beginPath(); g.ellipse(x, y, w, h, r, 0, Math.PI * 2); g.fill();
+  }
+  for (let i = 0; i < 40; i++) { // 토마토
+    g.save(); g.translate(rnd(0, 512), rnd(0, 512)); g.rotate(rnd(0, 6.3));
+    g.fillStyle = i % 2 ? '#c8231a' : '#e8392b';
+    g.beginPath(); g.moveTo(-22, 0); g.quadraticCurveTo(0, -30, 22, 0); g.quadraticCurveTo(0, 10, -22, 0); g.fill();
+    g.fillStyle = 'rgba(255,200,170,.7)'; g.beginPath(); g.ellipse(-4, -9, 8, 3, 0, 0, Math.PI * 2); g.fill();
+    g.restore();
+  }
+  g.strokeStyle = 'rgba(255,255,255,.35)'; g.lineWidth = 5; g.lineCap = 'round'; // 윤기
+  for (let i = 0; i < 30; i++) { const x = rnd(0, 512), y = rnd(0, 512); g.beginPath(); g.moveTo(x, y); g.lineTo(x + rnd(8, 22), y - rnd(2, 8)); g.stroke(); }
+  const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; return t;
+}
+const DISH_R = 0.82, DISH_H = 0.66;
+const dishHeight = (r) => DISH_H * Math.sqrt(Math.max(0, 1 - (r / DISH_R) ** 2)); // 더미 높이 (가운데가 봉긋)
+function makeDish() {
+  const dish = new THREE.Group();
+  // 울퉁불퉁한 반구 더미 (같은 위치는 같은 높이라 이음새가 안 벌어진다)
+  const geo = new THREE.SphereGeometry(1, 48, 20, 0, Math.PI * 2, 0, Math.PI / 2);
+  const pos = geo.attributes.position, v = new THREE.Vector3();
+  for (let i = 0; i < pos.count; i++) {
+    v.fromBufferAttribute(pos, i);
+    const bump = 1 + Math.sin(v.x * 9) * Math.cos(v.z * 8) * 0.06 + Math.sin((v.x + v.z) * 15) * 0.035;
+    pos.setXYZ(i, v.x * DISH_R * bump, v.y * DISH_H * bump, v.z * DISH_R * bump);
+  }
+  geo.computeVertexNormals();
+  const mat = toon(0xffffff); mat.map = dishTexture();
+  const mound = outline(new THREE.Mesh(geo, mat), 1.03);
+  dish.add(mound);
+  // 위에 얹는 재료: 토마토 조각, 계란, 파, 깨
+  const put = (mesh, r, a, lift = 0.02) => {
+    mesh.position.set(Math.cos(a) * r, dishHeight(r) + lift, Math.sin(a) * r);
+    mesh.rotation.set(rnd(0, 3), rnd(0, 3), rnd(0, 3)); dish.add(mesh);
+  };
+  const tomato = toon(0xd8261b), tomato2 = toon(0xf0452f), egg = toon(0xffd23f), egg2 = toon(0xfff1a8), green = toon(0x3fae49), sesame = toon(0xfff8e6);
+  for (let i = 0; i < 14; i++) {
+    const m = outline(new THREE.Mesh(new THREE.DodecahedronGeometry(rnd(0.09, 0.13), 0), i % 2 ? tomato : tomato2), 1.12);
+    m.scale.set(1.3, 0.7, 1); put(m, rnd(0, 0.7), rnd(0, 6.3), 0.03);
+  }
+  for (let i = 0; i < 16; i++) {
+    const m = outline(new THREE.Mesh(new THREE.IcosahedronGeometry(rnd(0.08, 0.13), 1), i % 3 ? egg : egg2), 1.1);
+    m.scale.set(1.4, 0.6, 1.1); put(m, rnd(0, 0.72), rnd(0, 6.3), 0.03);
+  }
+  for (let i = 0; i < 18; i++) { // 송송 썬 파
+    const m = new THREE.Mesh(new THREE.TorusGeometry(0.045, 0.018, 6, 12), green);
+    put(m, rnd(0, 0.55), rnd(0, 6.3), 0.06);
+  }
+  for (let i = 0; i < 24; i++) { // 깨
+    const m = new THREE.Mesh(new THREE.SphereGeometry(0.018, 6, 4), sesame); m.scale.set(1, 0.5, 1.6);
+    put(m, rnd(0, 0.6), rnd(0, 6.3), 0.05);
+  }
+  // 반짝임
+  const glints = Array.from({ length: 7 }, () => {
+    const g = new THREE.Sprite(new THREE.SpriteMaterial({ map: DOT, color: 0xffffff, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending }));
+    const r = rnd(0.1, 0.6), a = rnd(0, 6.3);
+    g.position.set(Math.cos(a) * r, dishHeight(r) + 0.08, Math.sin(a) * r); g.userData.ph = rnd(0, 6.3);
+    dish.add(g); return g;
+  });
+  dish.userData.glints = glints;
+  return dish;
+}
+
+// 지글지글: 고른 기름 소리 + 탁탁 튀는 소리
+function sizzle(dur) {
+  const a = sfx(); if (!a) return;
+  const t = a.currentTime;
+  const n = flatNoise(a, dur), hp = a.createBiquadFilter(), bp = a.createBiquadFilter(), g = a.createGain();
+  hp.type = 'highpass'; hp.frequency.value = 2200; bp.type = 'peaking'; bp.frequency.value = 5000; bp.gain.value = 6;
+  g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(0.16, t + 0.15);
+  g.gain.setValueAtTime(0.16, t + dur - 0.35); g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+  n.connect(hp).connect(bp).connect(g).connect(a.destination); n.start(t);
+  for (let i = 0; i < 46; i++) burst(a, { at: rnd(0, dur - 0.1), dur: rnd(0.008, 0.02), type: 'highpass', f0: rnd(2500, 6000), gain: rnd(0.15, 0.4) });
+}
+function startWok() {
+  if (wok) return;
+  const g = new THREE.Group();
+  const metal = toon(0x3b3d48); metal.side = THREE.DoubleSide;
+  const pts = [];
+  for (let i = 0; i <= 14; i++) { const a = (i / 14) * Math.PI / 2; pts.push(new THREE.Vector2(Math.max(0.02, Math.sin(a) * 1.15), -Math.cos(a) * 0.55)); }
+  const bowl = new THREE.Mesh(new THREE.LatheGeometry(pts, 44), metal); g.add(bowl);
+  const rim = new THREE.Mesh(new THREE.TorusGeometry(1.15, 0.06, 10, 48), toon(0x24252d)); rim.rotation.x = Math.PI / 2; g.add(rim);
+  const wood = toon(0x8a5a2b);
+  const handle = outline(new THREE.Mesh(new THREE.CylinderGeometry(0.08, 0.1, 1.2, 12), wood), 1.12);
+  handle.rotation.z = Math.PI / 2; handle.position.set(1.75, 0.08, 0); g.add(handle);
+  const ear = new THREE.Mesh(new THREE.TorusGeometry(0.16, 0.05, 8, 16, Math.PI), metal); ear.position.set(-1.2, 0.02, 0); ear.rotation.z = Math.PI / 2; g.add(ear);
+  const foodTex = foodTexture();
+  const food = new THREE.Mesh(new THREE.CircleGeometry(0.98, 40), new THREE.MeshBasicMaterial({ map: foodTex, transparent: true, opacity: 0 }));
+  food.rotation.x = -Math.PI / 2; food.position.y = -0.2; g.add(food);
+  const pal = [0xe5332a, 0xffd43b, 0xfff1a8, 0xd62a1e, 0x4caf50];
+  const chunks = Array.from({ length: 16 }, (_, i) => {
+    const m = new THREE.Mesh(new THREE.SphereGeometry(rnd(0.08, 0.14), 10, 8), toon(pal[i % pal.length]));
+    const a = rnd(0, Math.PI * 2), d = rnd(0, 0.75);
+    m.position.set(Math.cos(a) * d, -0.15, Math.sin(a) * d); m.userData.y0 = -0.15; m.userData.f = rnd(7, 11); m.userData.ph = rnd(0, 6);
+    g.add(m); return m;
+  });
+  const fires = Array.from({ length: 6 }, (_, i) => {
+    const f = new THREE.Sprite(new THREE.SpriteMaterial({ map: DOT, color: i % 2 ? 0xff7a1a : 0xffc02e, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending }));
+    f.position.set((i - 2.5) * 0.28, -0.75, rnd(-0.2, 0.2)); g.add(f); return f;
+  });
+  const dish = makeDish(); dish.position.y = -0.3; dish.scale.setScalar(0.001); dish.visible = false; g.add(dish);
+  const glow = new THREE.PointLight(0xffc27a, 0, 4, 1.5); glow.position.set(0, 1.4, 0.8); g.add(glow);
+  g.position.set(0, SILL + 0.1, 2.2);
+  g.rotation.x = 0.55; // 안이 보이게 기울인다
+  g.scale.setScalar(0.01);
+  scene.add(g);
+  wok = { g, food, chunks, fires, dish, glow, t0: S.T, done: false, nextFx: 0 };
+  $('#throwTomato').disabled = $('#throwEgg').disabled = true;
+  $('#wokMeter').innerHTML = '🍳 보글보글 볶는 중…';
+  label('웍 등장!', g.position.clone().add(new THREE.Vector3(0, 1.3, 0.5)), { px: 110, fill: '#ffffff' }, 0.8, 'pop', 0.9);
+  wokClang(); sizzle(2.8);
+  // 지글지글 햅틱 (지원하는 기기만: 안드로이드 등)
+  const pattern = [];
+  for (let ms = 0; ms < 2600; ) { const on = Math.round(rnd(12, 28)), off = Math.round(rnd(35, 90)); pattern.push(on, off); ms += on + off; }
+  try { navigator.vibrate && navigator.vibrate(pattern); } catch (e) {}
+  canvas.classList.remove('aiming');
+}
+function updateWok() {
+  if (!wok) return;
+  const w = wok, t = S.T - w.t0, base = SILL + 0.1;
+  // 나타나기 → 볶기(0~2.6초) → 완성 → 4.4초부터 사라지기
+  let sc = t < 0.35 ? 1.15 * Math.sin((t / 0.35) * Math.PI / 2) : 1;
+  if (t > 5.2) sc = Math.max(0, 1 - (t - 5.2) / 0.45);
+  w.g.scale.setScalar(Math.max(0.01, sc));
+  const cooking = t < 2.6;
+  if (cooking) {
+    const ph = (t % 0.55) / 0.55; // 웍질
+    const toss = Math.floor(t / 0.55);
+    if (toss !== w.lastToss) { w.lastToss = toss; if (toss > 0) wokToss(); }
+    w.g.position.y = base + Math.max(0, Math.sin(ph * Math.PI)) * 0.18;
+    w.g.position.x = Math.sin(t * 38) * 0.035;
+    w.g.rotation.z = Math.sin(t * 11) * 0.06;
+    w.chunks.forEach((c) => (c.position.y = c.userData.y0 + Math.abs(Math.sin(t * c.userData.f + c.userData.ph)) * 0.55));
+    w.food.material.opacity = Math.min(1, t / 2.2);
+    if (S.T >= w.nextFx) {
+      w.nextFx = S.T + 0.16;
+      const top = w.g.position.clone().add(new THREE.Vector3(rnd(-0.6, 0.6), 0.2, rnd(0, 0.5)));
+      spark(top, Math.random() < 0.5 ? 0xffffff : 0xffe7a0, rnd(0.12, 0.26), new THREE.Vector3(rnd(-0.4, 0.4), rnd(1.5, 3), 0), rnd(0.5, 0.9), -1.5, false); // 보글보글 김
+      if (Math.random() < 0.3) label(Math.random() < 0.7 ? '보글보글' : '치익~', top.clone().add(new THREE.Vector3(rnd(-0.8, 0.8), 0.6, 0.4)), { px: 80, fill: '#ffffff', sw: 12 }, 0.5, 'pop', 0.6);
+    }
+  } else {
+    // 완성: 웍이 살짝 떠오르며 안을 보여주고, 볶음 더미가 퐁 하고 솟는다
+    const dt2 = t - 2.6, k = Math.min(1, dt2 / 0.5), ease = 1 - (1 - k) ** 3;
+    w.g.position.set(0, base + ease * 0.3 + Math.sin(t * 2.4) * 0.03, 2.2);
+    w.g.rotation.set(0.55 + ease * 0.2, Math.sin(t * 1.4) * 0.12, 0);
+    w.chunks.forEach((c) => (c.visible = false));
+    w.food.material.opacity = 1;
+    w.food.material.color.setHex(0x7a2a12); // 아래 국물은 어둡게 → 더미가 도드라지게
+    w.dish.visible = true;
+    const pop = dt2 < 0.45 ? Math.sin((dt2 / 0.45) * Math.PI * 0.75) / Math.sin(Math.PI * 0.75) : 1; // 살짝 넘쳤다가 자리 잡기
+    w.dish.scale.set(Math.max(0.001, Math.min(1.12, pop)), Math.max(0.001, Math.min(1.25, pop * 1.1)), Math.max(0.001, Math.min(1.12, pop)));
+    if (dt2 > 0.45) w.dish.scale.setScalar(1 + Math.sin(t * 6) * 0.012); // 김 오르며 몽글몽글
+    w.glow.intensity = Math.min(2.2, dt2 * 6);
+    w.dish.userData.glints.forEach((g) => { const tw = Math.max(0, Math.sin(t * 5 + g.userData.ph)); g.scale.setScalar(0.05 + tw * 0.22); g.material.opacity = tw; });
+    if (S.T >= w.nextFx) { // 모락모락 김
+      w.nextFx = S.T + 0.22;
+      const top = w.dish.getWorldPosition(new THREE.Vector3()).add(new THREE.Vector3(rnd(-0.4, 0.4), 0.85, rnd(-0.1, 0.2)));
+      spark(top, 0xfff6ea, rnd(0.12, 0.2), new THREE.Vector3(rnd(-0.2, 0.2), rnd(0.9, 1.4), 0), rnd(0.7, 1.1), -0.4, false);
+    }
+    if (!w.done) {
+      w.done = true;
+      label('토계볶 완성!', w.g.position.clone().add(new THREE.Vector3(0, 1.5, 1.0)), { px: 130, fill: '#FFD23F' }, 0.8, 'pop', 1.9);
+      for (let i = 0; i < 24; i++) { // 완성 반짝
+        const a = Math.random() * Math.PI * 2, sp = rnd(2, 5);
+        spark(w.g.position.clone().add(new THREE.Vector3(0, 0.5, 0.6)), i % 2 ? 0xffd23f : 0xffffff, rnd(0.12, 0.22), new THREE.Vector3(Math.cos(a) * sp, Math.sin(a) * sp, rnd(0, 2)), rnd(0.4, 0.7));
+      }
+      S.punch = 0.8;
+      for (let i = 0; i < 14; i++) heart(w.g.position.clone().add(new THREE.Vector3(0, 0.4, 0.4)), new THREE.Vector3(rnd(-3, 3), rnd(1.5, 4), rnd(0, 2)), rnd(0.24, 0.36), 1.6);
+      fanfare(); buzz(40);
+      report({ type: 'vent-wok' });
+      $('#wokMeter').innerHTML = '🍅🥚 토계볶 완성! 맛있게 드세요';
+    }
+  }
+  w.fires.forEach((f, i) => {
+    const on = cooking ? 1 : Math.max(0, 1 - (t - 2.6) / 0.5);
+    f.scale.setScalar((0.35 + Math.random() * 0.25) * on + 0.001);
+    f.material.opacity = on;
+  });
+  if (t > 5.65) disposeWok();
+}
+function disposeWok() {
+  if (!wok) return;
+  scene.remove(wok.g);
+  $('#throwTomato').disabled = $('#throwEgg').disabled = false;
+  canvas.classList.toggle('aiming', Boolean(S.item));
+  if (!S.sent) $('#hintText').textContent = S.item ? `${S.item === 'tomato' ? '🍅' : '🥚'} 캐릭터를 누르면 그 자리로 던져요 (게이지는 그대로)` : '띄어쓰기를 누를 때마다 단어가 날아가요';
+  wok.g.traverse((o) => {
+    o.geometry?.dispose();
+    if (!o.material || o.material === outlineMat) return; // 테두리 재질은 다른 곳과 같이 쓴다
+    if (o.material.map && o.material.map !== DOT) o.material.map.dispose();
+    o.material.dispose();
+  });
+  wok = null;
+  $('#wokMeter').innerHTML = `🍳 토마토·계란 10개 맞히면 토계볶! <b id="wokN">${S.thrown || 0}</b>/10`;
+}
+
+const pointer = new THREE.Vector2();
+function pickCharacter(clientX, clientY) {
+  const r = canvas.getBoundingClientRect();
+  pointer.set(((clientX - r.left) / r.width) * 2 - 1, -((clientY - r.top) / r.height) * 2 + 1);
+  ray.setFromCamera(pointer, camera);
+  const parts = [skull, ...ears, body, ...fists.filter((f) => f.visible)];
+  const hit = ray.intersectObjects(parts, false)[0];
+  if (!hit) return null;
+  return { obj: hit.object, local: hit.object.worldToLocal(hit.point.clone()), normal: hit.face.normal.clone().normalize() };
+}
+
+function buzz(ms) { try { navigator.vibrate && navigator.vibrate(ms); } catch (e) {} }
+
+/* ---------- state ---------- */
+const S = {
+  yaw: 0, yawV: 0, // 좌우 회전 (드래그)
+  T: 0, freeze: 0, anger: 100, shown: 100, sent: false, sentT: -9,
+  sq: 0, sqv: 0, rx: 0, rxv: 0, rz: 0, rzv: 0, kz: 0, kzv: 0, flash: 0, shake: 0, punch: 0,
+  combo: 0, lastHit: -9, hits: 0, launched: 0, words: [], tier: 'rage', demo: null, megaPending: false
+};
+const projs = [], fx = [];
+
+function tierOf() {
+  if (S.sent) return 'peace';
+  if (S.anger > 70) return 'rage';
+  if (S.anger > 40) return 'mad';
+  if (S.anger > 15) return 'meh';
+  return 'sorry';
+}
+// 지금 카메라 쪽으로 뒤통수가 보이는지
+const isBack = () => Math.cos(S.yaw) < -0.2;
+const BACK_BUBBLES = { rage: '아야! 뒤통수는 반칙이지!', mad: '누구야 뒤에서?!', meh: '아 뒤통수... 알겠어요', sorry: '뒤돌아서 반성할게요' };
+const BUBBLES = { rage: '뭐요?! 나 가만히 있었는데!', mad: '...그렇게 시끄러웠어요?', meh: '아, 몰랐어요...', sorry: '죄송해요, 조심할게요', peace: '앞으로 살살 다닐게요!' };
+const MOODS = { rage: '폭발 직전', mad: '부글부글', meh: '머쓱', sorry: '미안미안', peace: '평화' };
+
+/* ---------- projectiles ---------- */
+const tmpV = new THREE.Vector3();
+function screenPoint(nx, ny, dist) {
+  const v = new THREE.Vector3(nx, ny, 0.5).unproject(camera).sub(camera.position).normalize();
+  return camera.position.clone().addScaledVector(v, dist);
+}
+function wordBlock(word) {
+  const { tex, aspect } = chipTexture(word);
+  const h = 0.52, w = h * aspect;
+  const side = toon(ACCENT), face = new THREE.MeshBasicMaterial({ map: tex });
+  const m = new THREE.Mesh(new THREE.BoxGeometry(w, h, 0.2), [side, side, side, side, face, face]);
+  m.userData.own = [m.geometry, side, face, tex];
+  return m;
+}
+function messageCard(text) {
+  const { tex, aspect } = cardTexture(text);
+  const w = 2.3, h = w / aspect;
+  const side = new THREE.MeshBasicMaterial({ color: 0xffffff }), face = new THREE.MeshBasicMaterial({ map: tex });
+  const m = new THREE.Mesh(new THREE.BoxGeometry(w, h, 0.07), [side, side, side, side, face, face]);
+  m.userData.own = [m.geometry, side, face, tex];
+  return m;
+}
+function launch(word, idx, delay = 0) {
+  const len = Array.from(word).length;
+  const shown = len > 12 ? Array.from(word).slice(0, 12).join('') + '…' : word;
+  const mesh = wordBlock(shown); mesh.visible = false; scene.add(mesh);
+  projs.push({
+    mesh, word: shown, len: Math.min(len, 12), idx,
+    start: screenPoint(rnd(-0.35, 0.35), -0.72, 3.4),
+    off: new THREE.Vector3(rnd(-0.42, 0.42), rnd(-0.3, 0.32), 0.82),
+    t0: S.T + delay, dur: 0.44 + Math.min(len, 8) * 0.025,
+    arc: rnd(1.2, 2.4), side: rnd(-1.4, 1.4), turns: Math.random() < 0.5 ? -1 : 1, wob: rnd(-1, 1), whooshed: false
+  });
+  S.words[idx] = 'fly';
+}
+function launchMega(text) {
+  const mesh = messageCard(text); mesh.visible = false; scene.add(mesh);
+  projs.push({
+    mesh, mega: true, word: text, len: 10, idx: -1,
+    start: screenPoint(0, -0.6, 3.0), off: new THREE.Vector3(0, 0, 0.9),
+    t0: S.T + 0.45, dur: 0.85, arc: 2.6, side: 0, turns: 1, wob: 0.3, whooshed: false
+  });
+}
+
+/* ---------- effects ---------- */
+function addFx(obj, o) {
+  scene.add(obj);
+  fx.push(Object.assign({ obj, v: new THREE.Vector3(), av: null, g: 0, drag: 1, life: 1, max: 1, kind: 'spark', s0: 1, age: 0 }, o, { max: o.life }));
+}
+function spark(pos, color, size, vel, life, g = 6, additive = true) {
+  const s = new THREE.Sprite(new THREE.SpriteMaterial({ map: DOT, color, transparent: true, depthWrite: false, blending: additive ? THREE.AdditiveBlending : THREE.NormalBlending }));
+  s.position.copy(pos); s.scale.setScalar(size); s.userData.own = [s.material];
+  addFx(s, { v: vel, life, g, drag: 0.94, kind: 'spark', s0: size });
+}
+function heart(pos, vel, size = 0.32, life = 1.2) {
+  const s = new THREE.Sprite(new THREE.SpriteMaterial({ map: HEART, transparent: true, depthWrite: false }));
+  s.position.copy(pos); s.scale.setScalar(size); s.userData.own = [s.material];
+  addFx(s, { v: vel, life, g: -1.2, drag: 0.97, kind: 'heart', s0: size });
+}
+function label(text, pos, opts, h, kind, life, vel) {
+  const { tex, aspect } = labelTexture(text, opts);
+  const s = new THREE.Sprite(new THREE.SpriteMaterial({ map: tex, transparent: true, depthWrite: false, depthTest: false }));
+  s.renderOrder = 10; s.position.copy(pos); s.material.rotation = rnd(-0.3, 0.3);
+  s.userData = { own: [s.material, tex], aspect, h };
+  s.scale.set(0.01, 0.01, 1);
+  addFx(s, { v: vel || new THREE.Vector3(), life, kind });
+}
+function ring(pos, color, big) {
+  const m = new THREE.Mesh(new THREE.RingGeometry(0.32, 0.44, 48), new THREE.MeshBasicMaterial({ color, transparent: true, depthWrite: false, side: THREE.DoubleSide }));
+  m.position.copy(pos); m.lookAt(camera.position); m.userData.own = [m.geometry, m.material];
+  addFx(m, { life: 0.5, kind: 'ring', s0: big });
+}
+function shards(word, pos, h) {
+  for (const ch of Array.from(word)) {
+    if (ch === '…') continue;
+    const { tex } = chipTexture(ch);
+    const side = toon(ACCENT), face = new THREE.MeshBasicMaterial({ map: tex, transparent: true });
+    side.transparent = true;
+    const m = new THREE.Mesh(new THREE.BoxGeometry(h * 0.8, h * 0.8, 0.14), [side, side, side, side, face, face]);
+    m.position.copy(pos).add(new THREE.Vector3(rnd(-0.2, 0.2), rnd(-0.1, 0.1), 0.1));
+    m.userData.own = [m.geometry, side, face, tex];
+    addFx(m, {
+      v: new THREE.Vector3(rnd(-3.2, 3.2), rnd(1.5, 4.5), rnd(0.5, 3)), av: new THREE.Vector3(rnd(-12, 12), rnd(-12, 12), rnd(-8, 8)),
+      g: 11, drag: 0.99, life: rnd(0.9, 1.3), kind: 'shard'
+    });
+  }
+}
+function confetti() {
+  const pal = [0xFFD23F, 0x5BE0B3, 0xFF8FB1, 0x8FB8FF, 0xffffff];
+  const top = LOOK.y + 5.5;
+  for (let i = 0; i < (reduceMotion ? 30 : 120); i++) {
+    const m = new THREE.Mesh(new THREE.PlaneGeometry(0.09, 0.15), new THREE.MeshBasicMaterial({ color: pal[i % 5], side: THREE.DoubleSide, transparent: true }));
+    m.position.set(rnd(-3, 3), rnd(top, top + 4), rnd(-0.4, 3.5)); m.userData.own = [m.geometry, m.material];
+    addFx(m, { v: new THREE.Vector3(rnd(-0.5, 0.5), rnd(-2.4, -1.2), 0), av: new THREE.Vector3(rnd(-8, 8), rnd(-8, 8), rnd(-6, 6)), g: 0.4, drag: 0.995, life: rnd(4, 5.5), kind: 'conf' });
+  }
+}
+function disposeObj(o) {
+  scene.remove(o);
+  for (const r of (o.userData.own || [])) r.dispose && r.dispose();
+}
+
+function impact(p, hitPos) {
+  const now = S.T;
+  if (p.mega) return finale(hitPos);
+  if (p.item) return itemImpact(p, hitPos);
+  S.combo = now - S.lastHit < 1.4 ? S.combo + 1 : 1; S.lastHit = now;
+  const mult = 1 + Math.min(S.combo - 1, 6) * 0.08;
+  const dmg = Math.min(S.anger, Math.round((2.5 + p.len * 1.2) * mult * (isBack() ? 1.3 : 1))); // 뒤통수 보너스
+  S.anger = Math.max(0, S.anger - dmg);
+  S.hits++; if (p.idx >= 0) S.words[p.idx] = S.words[p.idx] ? 'hit' : S.words[p.idx];
+  const back = isBack();
+  const dir = (Math.sign(p.off.x) || 1) * (back ? -1 : 1); // 뒤에서 맞으면 반대로 젖혀진다
+  const k = reduceMotion ? 0.35 : 1;
+  S.sqv += (2.6 + p.len * 0.25) * k;
+  S.rxv -= (5 + p.len * 0.5) * k * (back ? -1 : 1); // 뒤통수를 맞으면 앞으로 꾸벅
+  S.rzv -= dir * (4 + p.len * 0.6) * k;
+  S.kzv -= (3 + p.len * 0.3) * k;
+  S.flash = 1; S.shake = Math.min(1, (0.35 + p.len * 0.06)) * k; S.punch = 1 * k;
+  S.freeze = reduceMotion ? 0 : Math.min(0.09, 0.04 + p.len * 0.005);
+  const calm = S.anger <= 15;
+  ring(hitPos, calm ? 0xff9ab7 : 0xffffff, 1 + p.len * 0.05);
+  const pops = calm ? ['토닥', '콕!', '톡!'] : back ? ['뒤통수!', '딱밤!', '콩!', '뒤통수 퍽!'] : ['퍽!', '빡!', '쾅!', '팍!', '퍼억!', '딱!', '와장창!'];
+  label(pops[Math.floor(Math.random() * pops.length)], hitPos.clone().add(new THREE.Vector3(rnd(-0.4, 0.4), 0.7, 0.6)), { px: 120 }, 0.95, 'pop', 0.75);
+  if (dmg > 0) label('-' + dmg, hitPos.clone().add(new THREE.Vector3(dir * 0.9, -0.1, 0.5)), { px: 90, fill: '#ffffff', sw: 14 }, 0.45, 'float', 1, new THREE.Vector3(0, 1.1, 0));
+  shards(p.word, hitPos, 0.42);
+  if (calm) {
+    for (let i = 0; i < 8; i++) heart(hitPos, new THREE.Vector3(rnd(-2.5, 2.5), rnd(0.5, 3), rnd(0, 1.5)), rnd(0.22, 0.36));
+  } else {
+    const cols = [0xFFD23F, 0xffffff, 0xFF4D6D];
+    for (let i = 0; i < 22; i++) {
+      const a = Math.random() * Math.PI * 2, sp = rnd(3, 8);
+      spark(hitPos, cols[i % 3], rnd(0.12, 0.28), new THREE.Vector3(Math.cos(a) * sp, Math.sin(a) * sp, rnd(0, 3)), rnd(0.25, 0.5));
+    }
+  }
+  if (S.combo >= 2) {
+    const el = $('#combo'); $('#comboN').textContent = S.combo;
+    el.classList.remove('go'); void el.offsetWidth; el.classList.add('go');
+  }
+  thump(p.len); buzz(14 + p.len * 2);
+  renderMirror();
+}
+
+function finale(hitPos) {
+  S.anger = 0; S.sent = true; S.sentT = S.T; S.sentWall = performance.now() / 1000;
+  S.sqv += 3.6; S.rxv -= 7; S.kzv -= 5; S.flash = 1; S.shake = reduceMotion ? 0.3 : 1.2; S.punch = 1.4; S.freeze = reduceMotion ? 0 : 0.12;
+  ring(hitPos, 0xffffff, 2.2);
+  setTimeout(() => ring(head.getWorldPosition(new THREE.Vector3()), 0xff9ab7, 3), 120);
+  label('속 시원!', hitPos.clone().add(new THREE.Vector3(0, 1.3, 0.8)), { px: 120, fill: '#5BE0B3' }, 1.1, 'pop', 1.4);
+  for (let i = 0; i < 18; i++) heart(hitPos, new THREE.Vector3(rnd(-3, 3), rnd(1, 4), rnd(0, 2)), rnd(0.26, 0.42), 1.8);
+  confetti(); chime(); buzz(40);
+  setTimeout(() => $('#toast').classList.add('show'), 600);
+  $('#field').classList.add('locked');
+  input.disabled = true;
+  $('#hintText').textContent = '속이 좀 풀리셨나요? 진짜로 알리려면 닫고 정중하게 보내 주세요';
+  renderMirror(); syncSend();
+}
+
+/* ---------- input: the sentence stays, each finished word flies ---------- */
+function esc(s) { return s.replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]); }
+function renderMirror() {
+  const v = input.value;
+  if (!v) { mirror.innerHTML = S.sent ? '' : '<span class="ph">조용히 해달라고 말해보세요</span>'; }
+  else {
+    let i = 0, html = '';
+    v.replace(/(\S+)|(\s+)/g, (m, word, sp) => {
+      if (word) { const st = S.words[i++]; html += st ? `<span class="${st}">${esc(word)}</span>` : esc(word); }
+      else html += sp;
+      return m;
+    });
+    mirror.innerHTML = html;
+  }
+  mirror.scrollLeft = input.scrollLeft;
+  $('#hitCount').textContent = S.hits;
+}
+function syncSend() {
+  const can = !S.sent && !S.megaPending && input.value.trim().length > 0;
+  $('#send').disabled = !can;
+  $('#send').classList.toggle('ready', can && S.anger <= 15);
+}
+function onInput() {
+  if (S.sent) return;
+  audio();
+  const v = input.value;
+  fontsFor(v);
+  const done = v.match(/\S+(?=\s)/g) || [];
+  if (done.length > S.launched) {
+    for (let i = S.launched; i < done.length; i++) launch(done[i], i, (i - S.launched) * 0.09);
+    S.launched = done.length;
+  } else if (done.length < S.launched) {
+    S.launched = done.length; S.words.length = done.length;
+  }
+  renderMirror(); syncSend();
+}
+function send() {
+  if (S.sent || S.megaPending) return;
+  const v = input.value.trim();
+  if (!v) return;
+  const all = v.split(/\s+/);
+  if (all.length > S.launched) { for (let i = S.launched; i < all.length; i++) launch(all[i], i, (i - S.launched) * 0.09); S.launched = all.length; }
+  S.megaPending = true;
+  launchMega(v);
+  renderMirror(); syncSend();
+}
+input.addEventListener('input', onInput);
+input.addEventListener('scroll', () => { mirror.scrollLeft = input.scrollLeft; });
+input.addEventListener('keydown', (e) => {
+  if (e.key === 'Enter') { e.preventDefault(); stopDemo(); setTimeout(send, 30); }
+  else if (S.demo) stopDemo();
+});
+$('#send').addEventListener('click', () => { audio(); stopDemo(); send(); });
+
+function resetAll() {
+  stopDemo();
+  for (const p of projs) disposeObj(p.mesh); projs.length = 0;
+  for (const f of fx) disposeObj(f.obj); fx.length = 0;
+  clearDecals();
+  disposeWok(); S.thrown = 0; $('#wokN').textContent = 0;
+  Object.assign(S, { yaw: 0, yawV: 0, anger: 100, sent: false, sentT: -9, combo: 0, lastHit: -9, hits: 0, launched: 0, words: [], megaPending: false });
+  input.disabled = false; input.value = '';
+  $('#toast').classList.remove('show'); $('#field').classList.remove('locked');
+  $('#hintText').textContent = '띄어쓰기를 누를 때마다 단어가 날아가요';
+  renderMirror(); syncSend();
+}
+// 토마토·계란: 골라 두고 캐릭터를 누르면 그 자리로 던진다 (다시 누르면 해제)
+S.item = null;
+const WORD_HINT = '띄어쓰기를 누를 때마다 단어가 날아가요';
+function selectItem(kind) {
+  S.item = S.item === kind ? null : kind;
+  $('#throwTomato').setAttribute('aria-pressed', String(S.item === 'tomato'));
+  $('#throwEgg').setAttribute('aria-pressed', String(S.item === 'egg'));
+  canvas.classList.toggle('aiming', Boolean(S.item));
+  if (!S.sent) $('#hintText').textContent = S.item ? `${S.item === 'tomato' ? '🍅' : '🥚'} 캐릭터를 누르면 그 자리로 던져요 (게이지는 그대로)` : WORD_HINT;
+}
+$('#throwTomato').setAttribute('aria-pressed', 'false');
+$('#throwEgg').setAttribute('aria-pressed', 'false');
+$('#throwTomato').addEventListener('click', () => selectItem('tomato'));
+$('#throwEgg').addEventListener('click', () => selectItem('egg'));
+$('#reset').addEventListener('click', () => { audio(); resetAll(); input.focus(); });
+
+const DEMO = '밤마다 쿵쿵 소리가 들려서 잠을 못 자고 있어요 조금만 살살 걸어주시면 정말 감사하겠습니다';
+function stopDemo() { if (S.demo) { clearTimeout(S.demo); S.demo = null; } }
+$('#demo').addEventListener('click', () => {
+  audio(); resetAll(); fontsFor(DEMO);
+  let i = 0;
+  const step = () => {
+    if (i < DEMO.length) {
+      input.value += DEMO[i++]; onInput();
+      S.demo = setTimeout(step, DEMO[i - 1] === ' ' ? 170 : rnd(70, 120));
+    } else { S.demo = setTimeout(() => { S.demo = null; send(); }, 900); }
+  };
+  S.demo = setTimeout(step, 400);
+});
+$('#sound').addEventListener('click', () => {
+  muted = !muted; if (!muted) audio();
+  $('#sound').setAttribute('aria-pressed', String(!muted));
+  $('#sound').setAttribute('aria-label', muted ? '효과음 켜기' : '효과음 끄기');
+  $('#sndOn').style.display = muted ? 'none' : ''; $('#sndOff').style.display = muted ? '' : 'none';
+});
+
+/* ---------- 좌우 드래그로 돌리기 · 짧게 누르면 토마토·계란 던지기 ---------- */
+const TAP_PX = 8;
+const drag = { on: false, x: 0, t: 0, x0: 0, y0: 0, t0: 0, moved: false };
+canvas.addEventListener('pointerdown', (e) => {
+  Object.assign(drag, { on: true, x: e.clientX, t: performance.now(), x0: e.clientX, y0: e.clientY, t0: performance.now(), moved: false });
+  S.yawV = 0;
+  try { canvas.setPointerCapture(e.pointerId); } catch (err) {} // 드물게 이미 끝난 포인터면 무시
+});
+canvas.addEventListener('pointermove', (e) => {
+  if (!drag.on) return;
+  if (!drag.moved && Math.hypot(e.clientX - drag.x0, e.clientY - drag.y0) < TAP_PX) return; // 아직은 누르기
+  if (!drag.moved) { drag.moved = true; canvas.classList.add('dragging'); }
+  const now = performance.now(), dx = e.clientX - drag.x;
+  const d = dx * 0.012; // 화면 폭의 반쯤 밀면 반 바퀴
+  S.yaw += d;
+  S.yawV = d / Math.max(0.008, (now - drag.t) / 1000); // 손을 떼면 그 속도로 조금 더 돈다
+  drag.x = e.clientX; drag.t = now;
+});
+const endDrag = (e) => {
+  if (!drag.on) return;
+  drag.on = false; canvas.classList.remove('dragging');
+  if (!drag.moved) {
+    S.yawV = 0;
+    // 짧게 눌렀으면: 골라 둔 토마토·계란을 누른 부위로
+    if (e?.type === 'pointerup' && performance.now() - drag.t0 < 500) {
+      if (wok) { $('#hintText').textContent = '🍳 지글지글 볶는 중이에요. 잠깐만 기다려 주세요'; return; }
+      if (!S.item) { $('#hintText').textContent = '🍅 토마토나 🥚 계란을 먼저 골라 주세요'; return; }
+      const aim = pickCharacter(e.clientX, e.clientY);
+      if (aim) throwItem(S.item, aim);
+    }
+    return;
+  }
+  if (performance.now() - drag.t > 80) S.yawV = 0; // 멈췄다 뗐으면 관성 없음
+  S.yawV = Math.max(-14, Math.min(14, S.yawV));
+};
+canvas.addEventListener('pointerup', endDrag);
+canvas.addEventListener('pointercancel', endDrag);
+
+/* ---------- loop ---------- */
+const clock = new THREE.Clock();
+const bubbleEl = $('#bubble'), bubbleIn = $('#bubbleIn'), fillEl = $('#fill'), moodEl = $('#mood'), vigEl = $('#vignette');
+const ctrl = new THREE.Vector3(), hitPos = new THREE.Vector3(), headTop = new THREE.Vector3();
+const winCol = new THREE.Color(), tmpC = new THREE.Color();
+let lastMood = '';
+
+function spring(x, v, k, c, dt) { v += (-k * x - c * v) * dt; return [x + v * dt, v]; }
+
+function frame() {
+  const dtReal = Math.min(0.05, clock.getDelta());
+  let dt = dtReal;
+  if (S.freeze > 0) { S.freeze -= dtReal; dt = 0; }
+  S.T += dt;
+  const T = S.T, now = performance.now() / 1000;
+
+  // projectiles
+  for (let i = projs.length - 1; i >= 0; i--) {
+    const p = projs[i];
+    const u = (T - p.t0) / p.dur;
+    if (u < 0) { p.mesh.visible = false; continue; }
+    if (!p.whooshed) { p.whooshed = true; if (p.item) throwSound(p.item); else if (!p.mega) whoosh(); }
+    p.mesh.visible = true;
+    const target = p.aim ? p.aim.obj.localToWorld(tmpV.copy(p.aim.local)) : head.getWorldPosition(tmpV).add(p.off);
+    const e = Math.min(1, u), ee = e * e * 0.35 + e * 0.65;
+    ctrl.copy(p.start).lerp(target, 0.5); ctrl.y += p.arc; ctrl.x += p.side;
+    const a = (1 - ee) * (1 - ee), b = 2 * (1 - ee) * ee, c = ee * ee;
+    p.mesh.position.set(a * p.start.x + b * ctrl.x + c * target.x, a * p.start.y + b * ctrl.y + c * target.y, a * p.start.z + b * ctrl.z + c * target.z);
+    const pop = Math.min(1, u * 7);
+    p.mesh.scale.setScalar(pop * (1 + 0.2 * Math.sin(Math.PI * e)));
+    p.mesh.rotation.set(Math.sin(e * Math.PI) * 0.7 * p.wob, p.turns * Math.PI * 2 * ee, Math.sin(e * Math.PI * 2) * 0.25);
+    if (dt > 0 && !reduceMotion && Math.random() < 0.85) spark(p.mesh.position, p.mega ? 0xffffff : p.item ? ITEM[p.item].trail : 0xFFD23F, rnd(0.08, 0.18), new THREE.Vector3(rnd(-.4, .4), rnd(-.4, .4), rnd(-.4, .4)), 0.3, 0);
+    if (u >= 1) { hitPos.copy(target); disposeObj(p.mesh); projs.splice(i, 1); impact(p, hitPos.clone()); }
+  }
+
+  // fx
+  for (let i = fx.length - 1; i >= 0; i--) {
+    const f = fx[i], o = f.obj;
+    f.life -= dt; f.age += dt;
+    if (f.life <= 0) { disposeObj(o); fx.splice(i, 1); continue; }
+    const lk = f.life / f.max;
+    f.v.y -= f.g * dt; f.v.multiplyScalar(Math.pow(f.drag, dt * 60));
+    o.position.addScaledVector(f.v, dt);
+    if (f.av) { o.rotation.x += f.av.x * dt; o.rotation.y += f.av.y * dt; o.rotation.z += f.av.z * dt; }
+    if (f.kind === 'spark') { o.scale.setScalar(f.s0 * (0.3 + lk)); o.material.opacity = lk; }
+    else if (f.kind === 'heart') { o.scale.setScalar(f.s0 * (0.6 + (1 - lk) * 0.8)); o.material.opacity = Math.min(1, lk * 2.5); }
+    else if (f.kind === 'ring') { o.scale.setScalar(0.4 + (1 - lk) * 4 * f.s0); o.material.opacity = lk; }
+    else if (f.kind === 'shard') { const op = Math.min(1, lk * 3); for (const m of o.material) m.opacity = op; }
+    else if (f.kind === 'conf') { f.v.x += Math.sin(now * 3 + o.rotation.y) * 0.03; o.material.opacity = Math.min(1, lk * 3); }
+    else if (f.kind === 'pop' || f.kind === 'float') {
+      const ag = f.age, s = f.kind === 'pop' ? (ag < 0.08 ? ag / 0.08 * 1.45 : 1.45 - Math.min(1, (ag - 0.08) / 0.14) * 0.45) : Math.min(1, ag * 9);
+      const h = o.userData.h * s; o.scale.set(h * o.userData.aspect, h, 1);
+      o.material.opacity = lk < 0.35 ? lk / 0.35 : 1;
+    }
+  }
+
+  updateDecals();
+  updateWok();
+
+  // springs
+  [S.sq, S.sqv] = spring(S.sq, S.sqv, 420, 13, dt);
+  [S.rx, S.rxv] = spring(S.rx, S.rxv, 260, 10, dt);
+  [S.rz, S.rzv] = spring(S.rz, S.rzv, 260, 10, dt);
+  [S.kz, S.kzv] = spring(S.kz, S.kzv, 200, 12, dt);
+  S.flash = Math.max(0, S.flash - dtReal * 4.5);
+  S.shake *= Math.pow(0.002, dtReal); if (S.shake < 0.01) S.shake = 0;
+  S.punch *= Math.pow(0.004, dtReal);
+  S.shown += (S.anger - S.shown) * Math.min(1, dtReal * 7);
+  const a = C(S.shown / 100), peace = S.sent;
+
+  // character pose
+  const trem = reduceMotion ? 0 : Math.sin(now * 55) * a * a * 0.03;
+  let bob = Math.sin(now * 2.2) * (1 - a) * 0.05;
+  if (peace) { const h = now - (S.sentWall || now); bob = Math.abs(Math.sin(h * 7)) * 0.35 * Math.max(0, 1 - h / 2.4) + Math.sin(now * 2.4) * 0.04; }
+  charRoot.position.set(trem, bob, S.kz * 0.5);
+  if (!drag.on) { S.yaw += S.yawV * dtReal; S.yawV *= Math.pow(0.04, dtReal); }
+  spin.rotation.y = S.yaw;
+  const facing = Math.cos(S.yaw);
+  fists.forEach((f) => (f.visible = facing > 0.3));
+  hi.scale.set(1 + S.sq * 0.9, 1 - S.sq * 0.9, 1 + S.sq * 0.5);
+  head.rotation.set(S.rx * 0.5 + (peace ? Math.sin(now * 2) * 0.05 : 0), Math.sin(now * 0.9) * 0.08 * (1 - a), S.rz * 0.5 + (peace ? Math.sin(now * 3) * 0.08 : 0));
+
+  const hue = peace ? 46 : L(46, 4, a);
+  skin.color.setHSL(hue / 360, L(0.92, 0.84, a), L(0.7, 0.57, a), THREE.SRGBColorSpace);
+  skin.emissive.setRGB(S.flash * 0.9, S.flash * 0.9, S.flash * 0.9);
+  const hitEyes = S.flash > 0.45 && !peace;
+  eyeL.g.visible = eyeR.g.visible = !hitEyes && !peace;
+  hitL.visible = hitR.visible = hitEyes;
+  happyL.visible = happyR.visible = peace;
+  const sy = L(1, 0.6, a); eyeL.g.scale.y = eyeR.g.scale.y = sy;
+  const ps = L(1.2, 0.72, a), jit = Math.sin(now * 37) * a * 0.015;
+  eyeL.p.scale.setScalar(ps); eyeR.p.scale.setScalar(ps); eyeL.p.position.x = eyeR.p.position.x = jit;
+  const ang = peace ? -0.15 : L(-0.38, 0.5, a);
+  browL.rotation.z = -ang; browR.rotation.z = ang;
+  browL.position.y = browR.position.y = peace ? 0.47 : L(0.47, 0.37, a);
+  teeth.visible = !peace && a > 0.7;
+  mouth.visible = !peace && a <= 0.7;
+  smile.visible = peace;
+  const curv = L(0.55, -0.9, C(a / 0.7));
+  mouth.rotation.z = (curv >= 0 ? Math.PI : 0) + (a < 0.35 ? Math.sin(now * 9) * 0.1 : 0);
+  mouth.scale.set(1, Math.max(0.18, Math.abs(curv)), 1);
+  mouth.position.y = curv >= 0 ? -0.24 : -0.38;
+  blushMat.opacity = peace ? 0.9 : C((0.55 - a) / 0.4) * 0.85;
+  vein.visible = !peace && a > 0.4; vein.scale.setScalar(0.38 * (1 + 0.18 * Math.sin(now * 13)));
+  sweat.visible = !peace && a > 0.02 && a < 0.5; sweat.position.set(0.7, 0.5 - (now * 0.5 % 1) * 0.25, 0.42);
+  fists.forEach((f, i) => {
+    const s = i ? 1 : -1;
+    f.position.y = peace ? SILL + 1.6 + Math.sin(now * 9 + i * 1.5) * 0.15 : L(SILL + 0.3, SILL + 1.0, a) + Math.sin(now * 38 + i) * a * a * 0.06;
+    f.position.x = peace ? s * 1.25 : s * 1.05;
+  });
+
+  // atmosphere
+  scene.background.copy(bgCalm).lerp(bgRage, peace ? 0 : a);
+  scene.fog.color.copy(scene.background);
+  winCol.setHSL((peace ? 46 : L(46, 8, a)) / 360, 0.9, L(0.78, 0.6, a), THREE.SRGBColorSpace);
+  roomMat.color.copy(winCol);
+  roomLight.color.copy(winCol);
+  roomLight.intensity = 6 + (a > 0.7 && !reduceMotion ? Math.sin(now * 23) * 1.5 : 0);
+  for (const w of winObjs) {
+    const want = w.th < 0 ? 1 : (!peace && a > w.th ? 1 : 0);
+    w.lit += (want - w.lit) * Math.min(1, dtReal * 3);
+    w.m.material.color.copy(litOff).lerp(litOn, w.lit);
+  }
+  const steamOn = peace ? 0 : C((a - 0.6) / 0.25);
+  head.getWorldPosition(headTop);
+  steam.forEach((s, i) => {
+    const ph = (now * 1.1 + i / steam.length) % 1, side = i % 2 ? 1 : -1;
+    s.position.set(headTop.x + side * (0.45 + ph * 0.7), headTop.y + 0.7 + ph * 1.2, headTop.z + 0.1);
+    s.scale.setScalar(0.25 + ph * 0.6); s.material.opacity = Math.sin(Math.PI * ph) * steamOn * 0.8;
+  });
+  const kungOn = peace ? 0 : C((a - 0.42) / 0.4);
+  kungs.forEach((s, i) => {
+    const ph = (now * 1.6 + i * 0.37) % 1, sc = (ph < 0.12 ? 0.6 + ph * 6 : 1.32 - (ph - 0.12) * 0.4) * 0.55;
+    s.scale.set(sc * s.userData.aspect, sc, 1); s.material.opacity = kungOn * (1 - ph * 0.8);
+  });
+
+  // camera
+  camera.position.copy(CAM);
+  camera.position.x += (Math.random() * 2 - 1) * S.shake * 0.12;
+  camera.position.y += (Math.random() * 2 - 1) * S.shake * 0.12;
+  camera.lookAt(LOOK);
+  camera.rotation.z += (Math.random() * 2 - 1) * S.shake * 0.012;
+  camera.fov = 50 - S.punch * 3.5; camera.updateProjectionMatrix();
+
+  renderer.render(scene, camera);
+
+  // HTML overlay
+  const tier = tierOf();
+  const bkey = tier + (isBack() && BACK_BUBBLES[tier] ? '-back' : '');
+  if (bkey !== S.tier) { S.tier = bkey; bubbleIn.textContent = bkey.endsWith('-back') ? BACK_BUBBLES[tier] : BUBBLES[tier]; bubbleIn.classList.remove('pop'); void bubbleIn.offsetWidth; bubbleIn.classList.add('pop'); syncSend(); }
+  head.getWorldPosition(headTop).add(new THREE.Vector3(0.15, 1.05, 0)); headTop.project(camera);
+  const W = app.clientWidth, H = app.clientHeight;
+  const bx = (headTop.x * 0.5 + 0.5) * W, by = (-headTop.y * 0.5 + 0.5) * H;
+  const bw = bubbleIn.offsetWidth, bh = bubbleIn.offsetHeight;
+  const left = Math.max(12, Math.min(W - bw - 12, bx - 24));
+  bubbleEl.style.transform = `translate(${left.toFixed(1)}px, ${(by - bh - 14 + Math.sin(now * 3) * 3).toFixed(1)}px)`;
+  const moodTxt = `${MOODS[tier]} · ${Math.round(S.shown)}`;
+  if (moodTxt !== lastMood) {
+    lastMood = moodTxt; moodEl.textContent = moodTxt;
+    const col = peace ? '#5BE0B3' : `hsl(${L(150, 2, a).toFixed(0)}, 82%, 60%)`;
+    moodEl.style.color = col; fillEl.style.background = col; fillEl.style.width = `${S.shown.toFixed(1)}%`;
+  }
+  vigEl.style.boxShadow = `inset 0 0 160px rgba(255,30,60,${(peace ? 0 : C((a - 0.55) / 0.45) * (0.34 + 0.12 * Math.sin(now * 6))).toFixed(3)})`;
+
+  requestAnimationFrame(frame);
+}
+
+
+fontsFor('퍽빡쾅팍퍼억딱와장창토닥콕톡속시원쿵윗집우리-0123456789보글치익웍등장토계볶완성철찰빠직덕마란' + TO + DEMO + BUBBLES.rage);
+resize(); renderMirror(); syncSend();
+requestAnimationFrame(frame);
+</script>
+</body>
+</html>
