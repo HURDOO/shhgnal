@@ -1,4 +1,4 @@
-// 웹 푸시 수신 + 알림 표시 + 알림에서 바로 답장하기
+// 알림 표시 + 알림에서 바로 답장하기 (정적 데모: 서버 푸시는 오지 않고, 열린 탭이 띄운 알림만 다룬다)
 self.addEventListener('install', () => self.skipWaiting());
 self.addEventListener('activate', (e) => e.waitUntil(self.clients.claim()));
 
@@ -19,37 +19,34 @@ self.addEventListener('push', (event) => {
       actions: msg.actions,
       requireInteraction: msg.requireInteraction,
       renotify: Boolean(msg.tag),
-      icon: '/icon-192.png',
-      badge: '/icon-192.png',
+      icon: 'icon-192.png',
+      badge: 'icon-192.png',
       vibrate: [120, 60, 120],
     }),
   );
 });
 
 self.addEventListener('notificationclick', (event) => {
-  const { id, token, kind, slug, url = '/' } = event.notification.data || {};
+  const { id, kind, url = './' } = event.notification.data || {};
   event.notification.close();
 
   event.waitUntil(
     (async () => {
       const windows = await self.clients.matchAll({ type: 'window', includeUncontrolled: true });
 
-      // 알림의 액션 버튼(사과 / 저희 집 아님)을 누른 경우: 앱을 열지 않고 바로 답장
-      if (event.action && id && token && slug) {
-        const res = await fetch(`/api/b/${slug}/alerts/${id}/reply`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ token, reply: event.action }),
-        });
-        if (res.ok) {
-          const alert = await res.json();
-          windows.forEach((w) => w.postMessage({ type: 'replied', alert }));
-          return;
-        }
+      // 데모 데이터는 탭(localStorage)에만 있으므로, 알림을 띄운 그 세대의 탭에 일을 맡긴다
+      const here = (w) => {
+        const u = new URL(w.url);
+        return u.pathname + u.search === url;
+      };
+      // 알림의 액션 버튼(사과 / 저희 집 아님): 그 세대 탭이 바로 답장한다
+      if (event.action && id) {
+        const owner = windows.find(here);
+        if (owner) return owner.postMessage({ type: 'do-reply', id, reply: event.action, url });
       }
 
       // 알림 본문을 누른 경우: 앱을 열고 받은 알림이면 답장 화면, 관리사무소 답변이면 문의 창 표시
-      const win = windows.find((w) => new URL(w.url).pathname.startsWith(url)) || windows[0];
+      const win = windows.find(here) || windows[0];
       if (win) {
         await win.focus();
         if (id && kind === 'alert') win.postMessage({ type: 'open-alert', id });

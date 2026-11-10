@@ -218,3 +218,16 @@ p { margin: 6px 0; line-height: 1.5; }
 
 /* 로고 */
 .brand .logo { display: block; margin: 0 auto; filter: drop-shadow(0 6px 14px rgba(31, 61, 54, .18)); }
+
+/* 정적 데모 안내 띠 */
+.demo-strip {
+  display: block;
+  padding: 6px 16px;
+  background: var(--accent-soft);
+  color: var(--ink);
+  font-size: 12px;
+  text-align: center;
+  text-decoration: none;
+  border-bottom: 1px solid var(--line);
+}
+.demo-strip:hover { text-decoration: underline; }

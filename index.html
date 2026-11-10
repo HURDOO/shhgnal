@@ -1,0 +1,115 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="theme-color" content="#1f3d36" />
+  <title>쉿!그널 데모</title>
+  <meta name="description" content="층간소음을 이웃끼리 정중하게 알리는 앱 쉿!그널의 정적 데모" />
+  <link rel="icon" type="image/png" href="favicon.png" />
+  <link rel="stylesheet" href="style.css" />
+  <link rel="stylesheet" href="admin.css" />
+</head>
+<body>
+  <main class="view">
+    <div class="brand">
+      <img src="logo.png" alt="쉿!그널 로고" width="96" height="96" class="logo" />
+      <h1>쉿!그널</h1>
+      <p class="building-name" id="b-name">행복마을 101동</p>
+      <p class="muted">얼굴 붉히기 전에, 이웃끼리 정중하게 똑똑.</p>
+    </div>
+
+    <section class="card">
+      <h2>이렇게 써요</h2>
+      <ul class="how small">
+        <li>⬆️ <b>윗집 · 아랫집 · 옆집</b>에 소음 종류만 골라 익명으로 알려요.</li>
+        <li>🛡️ 직접 쓴 글은 <b>정중하게 다듬어</b> 전달하고, 원문은 관리사무소만 봐요.</li>
+        <li>🤷 어디서 나는지 모르면 <b>주변 세대 모두에게 확인 요청</b>을 보내요.</li>
+        <li>🙏 이사 · 공사 · 손님 방문은 <b>미리 양해</b>를 구해요.</li>
+        <li>🏢 앱을 안 쓰는 집이면 <b>관리사무소</b>가 대신 연락해요.</li>
+        <li>🍅 참기 힘들 땐 <b>화풀기</b>로 토마토·계란을 던져요 (진짜로는 아무에게도 안 가요).</li>
+      </ul>
+    </section>
+
+    <section class="card">
+      <h2>🧪 데모 해 보는 법</h2>
+      <ol class="steps small">
+        <li>아래에서 <b>302호</b>를 눌러 새 탭으로 열어요.</li>
+        <li>윗집 <b>402호</b>도 새 탭으로 열어요.</li>
+        <li>302호 탭에서 윗집에 "쿵쿵 발소리"를 보내면 402호 탭에 바로 알림이 떠요.</li>
+        <li><b>관리사무소</b> 탭을 열면 현황판에 민원이 오가는 게 실시간으로 보여요.</li>
+      </ol>
+      <p class="muted small">탭 하나가 한 집의 휴대폰이에요. 열지 않은 집으로 보내면 "미가입 세대"로 관리사무소를 거쳐요.</p>
+      <a class="btn primary wide center" href="admin.html" target="_blank" rel="noopener">🏢 관리사무소 화면 열기</a>
+    </section>
+
+    <section class="card">
+      <h2>호수 골라 들어가기</h2>
+      <div id="units" class="unit-pick" aria-label="호수 목록"></div>
+    </section>
+
+    <section class="card">
+      <h2>알아 두세요</h2>
+      <ul class="how small">
+        <li>서버 없이 <b>이 브라우저 안에서만</b> 돌아가요. 다른 폰과는 연결되지 않아요.</li>
+        <li>원래 버전의 AI 필터 대신 간단한 <b>규칙 필터</b>(욕설 가리기, 위협 차단)로 다듬어요.</li>
+        <li>앱이 닫혀 있을 때 오는 푸시 알림은 없어요. 열린 탭에서만 알림이 떠요.</li>
+        <li>소리 민원은 실제처럼 <b>5분에 1번, 1시간에 3번</b>까지예요. 막히면 아래 초기화를 눌러요.</li>
+      </ul>
+      <div class="row-end">
+        <button id="reset" class="btn auto" type="button">데모 처음부터 다시</button>
+      </div>
+      <p id="reset-msg" class="muted small" role="status"></p>
+    </section>
+  </main>
+  <style>
+    .center { display: block; text-align: center; text-decoration: none; margin-top: 12px; }
+    .how { padding-left: 0; list-style: none; line-height: 1.6; margin: 10px 0 0; display: grid; gap: 6px; }
+    .steps { margin: 10px 0 8px; padding-left: 20px; line-height: 1.6; display: grid; gap: 4px; }
+    .unit-pick { display: grid; gap: 6px; margin-top: 10px; }
+    .unit-pick .row { display: grid; gap: 6px; grid-template-columns: repeat(var(--cols), minmax(0, 1fr)); }
+    .unit-pick a, .unit-pick span { display: block; text-align: center; padding: 10px 0; border-radius: 10px; font-weight: 600; text-decoration: none; }
+    .unit-pick a { background: var(--unit-off); color: var(--ink); border: 1px solid var(--line); }
+    .unit-pick a:hover, .unit-pick a:focus-visible { background: var(--unit-on); }
+    .unit-pick a.hl { background: var(--accent-soft); border-color: var(--accent); }
+  </style>
+  <script type="module">
+    import { resetDemo } from './mock-server.js';
+    const $ = (id) => document.getElementById(id);
+
+    async function render() {
+      const cfg = await fetch('api/b/demo/config').then((r) => r.json());
+      $('b-name').textContent = cfg.name;
+      const { rows, cols, cells } = cfg.layout;
+      const wrap = $('units');
+      wrap.style.setProperty('--cols', cols);
+      wrap.innerHTML = '';
+      for (let r = 0; r < rows; r++) {
+        const row = document.createElement('div');
+        row.className = 'row';
+        for (let c = 0; c < cols; c++) {
+          const unit = cells[r * cols + c];
+          const el = document.createElement(unit ? 'a' : 'span');
+          if (unit) {
+            el.href = `app.html?unit=${encodeURIComponent(unit)}`;
+            el.target = '_blank';
+            el.rel = 'noopener';
+            el.textContent = unit;
+            if (unit === '302' || unit === '402') el.className = 'hl';
+          }
+          row.append(el);
+        }
+        wrap.append(row);
+      }
+    }
+
+    $('reset').addEventListener('click', async () => {
+      await resetDemo();
+      $('reset-msg').textContent = '처음 상태로 돌렸어요. 열려 있던 주민 탭은 등록 화면으로 돌아가요.';
+      render();
+    });
+
+    render();
+  </script>
+</body>
+</html>

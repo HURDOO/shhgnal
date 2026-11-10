@@ -1,17 +1,14 @@
 {
-  "name": "knock-neighbor",
+  "name": "shhgnal-static",
   "version": "0.1.0",
   "private": true,
   "type": "module",
-  "description": "똑똑이웃 - 층간소음 정중하게 알리기 프로토타입",
+  "description": "쉿!그널 정적 데모 (GitHub Pages) - 서버 없이 브라우저 안에서 동작",
   "scripts": {
-    "start": "node --env-file-if-exists=.env server.js",
-    "test": "node test/api-flow.mjs"
+    "start": "python3 -m http.server 8080",
+    "test": "node test/static-flow.mjs"
   },
   "engines": {
     "node": ">=22.9"
-  },
-  "dependencies": {
-    "web-push": "^3.6.7"
   }
 }

@@ -5,29 +5,29 @@
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
   <meta name="theme-color" content="#1f3d36" />
   <title>쉿!그널</title>
-  <!-- 건물별 매니페스트: /b/<slug>/manifest.webmanifest -->
   <link rel="manifest" href="manifest.webmanifest" />
-  <link rel="icon" type="image/png" href="/favicon.png" />
-  <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+  <link rel="icon" type="image/png" href="favicon.png" />
+  <link rel="apple-touch-icon" href="apple-touch-icon.png" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-title" content="쉿!그널" />
-  <link rel="stylesheet" href="/style.css" />
+  <link rel="stylesheet" href="style.css" />
 </head>
 <body>
+  <a class="demo-strip" href="./">🧪 정적 데모 · 이 브라우저 안에서만 동작해요 · 데모 안내</a>
   <!-- 없는 건물 -->
   <main id="view-missing" class="view" hidden>
     <div class="brand">
-      <img src="/logo.png" alt="쉿!그널 로고" width="80" height="80" class="logo" />
+      <img src="logo.png" alt="쉿!그널 로고" width="80" height="80" class="logo" />
       <h1>쉿!그널</h1>
-      <p class="muted">건물을 찾을 수 없어요. 우리 집 전용 QR을 다시 찍어 주세요.</p>
+      <p class="muted">데모를 불러오지 못했어요. 새로고침하거나 <a href="./">데모 안내</a>에서 다시 들어와 주세요.</p>
     </div>
   </main>
 
   <!-- 1. 세대 등록 -->
   <main id="view-join" class="view" hidden>
     <div class="brand">
-      <img src="/logo.png" alt="쉿!그널 로고" width="96" height="96" class="logo" />
+      <img src="logo.png" alt="쉿!그널 로고" width="96" height="96" class="logo" />
       <h1>쉿!그널</h1>
       <p class="building-name" data-building-name></p>
       <p class="muted">얼굴 붉히기 전에, 이웃끼리 정중하게 똑똑.</p>
@@ -83,7 +83,7 @@
     </section>
 
     <section id="notif-warning" class="card warn" hidden>
-      <strong>푸시 알림이 꺼져 있어요</strong>
+      <strong>알림이 꺼져 있어요</strong>
       <p class="small" id="notif-warning-text"></p>
       <button id="notif-retry" class="btn ghost small">알림 허용하기</button>
     </section>
@@ -286,6 +286,6 @@
 
   <div id="toast" class="toast" role="status" hidden></div>
 
-  <script src="/app.js" type="module"></script>
+  <script src="app.js" type="module"></script>
 </body>
 </html>

@@ -5,15 +5,16 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <meta name="theme-color" content="#1f3d36" />
   <title>쉿!그널 관리사무소</title>
-  <link rel="icon" type="image/png" href="/favicon.png" />
-  <link rel="stylesheet" href="/style.css" />
-  <link rel="stylesheet" href="/admin.css" />
+  <link rel="icon" type="image/png" href="favicon.png" />
+  <link rel="stylesheet" href="style.css" />
+  <link rel="stylesheet" href="admin.css" />
 </head>
 <body class="admin">
+  <a class="demo-strip" href="./">🧪 정적 데모 · 이 브라우저 안에서만 동작해요 · 데모 안내</a>
   <!-- 관리자 키 입력 -->
   <main id="gate" class="view" hidden>
     <div class="brand">
-      <img src="/logo.png" alt="쉿!그널 로고" width="80" height="80" class="logo" />
+      <img src="logo.png" alt="쉿!그널 로고" width="80" height="80" class="logo" />
       <h1>쉿!그널 관리사무소</h1>
       <p class="muted" id="gate-building"></p>
     </div>
@@ -21,6 +22,7 @@
       <label for="gate-key">관리자 키</label>
       <input id="gate-key" class="big-input" type="password" autocomplete="off" required />
       <button class="btn primary" type="submit">들어가기</button>
+      <p class="muted small">데모 관리자 키는 <code>demo</code>예요.</p>
       <p id="gate-error" class="error" role="alert"></p>
     </form>
   </main>
@@ -28,7 +30,7 @@
   <div id="app" hidden>
     <header class="a-top">
       <div class="a-title">
-        <img src="/logo.png" alt="" width="40" height="40" />
+        <img src="logo.png" alt="" width="40" height="40" />
         <div>
           <div class="muted small">쉿!그널 관리사무소</div>
           <strong id="a-building"></strong>
@@ -289,6 +291,6 @@
 
   <div id="toast" class="toast" role="status" hidden></div>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
-  <script src="/admin.js" type="module"></script>
+  <script src="admin.js" type="module"></script>
 </body>
 </html>

@@ -1,7 +1,8 @@
-// 쉿!그널 관리사무소 화면
+// 쉿!그널 관리사무소 화면 (정적 데모: 서버 대신 mock-server.js가 브라우저 안에서 API를 처리)
+import { DEMO_SLUG, DEMO_ADMIN_KEY } from './mock-server.js';
 const $ = (id) => document.getElementById(id);
-const SLUG = location.pathname.match(/^\/b\/([a-z0-9-]+)/)?.[1];
-const API = `/api/b/${SLUG}`;
+const SLUG = DEMO_SLUG;
+const API = `api/b/${SLUG}`;
 const KEY_STORE = `knock-admin-${SLUG}`;
 
 const state = {
@@ -498,7 +499,7 @@ const SEVERITY = { none: '<span class="tag ok">문제 없음</span>', mild: '<sp
 
 function renderFilter() {
   const { filterLog, llm } = state.snap;
-  $('llm-status').textContent = llm.enabled ? `AI 필터 사용 중 · ${llm.model}` : 'AI 키 없음 · 기본 규칙 필터로 동작 중';
+  $('llm-status').textContent = llm.enabled ? `AI 필터 사용 중 · ${llm.model}` : llm.demo ? '정적 데모 · 규칙 필터로 동작 (원래 버전은 AI가 다듬어요)' : 'AI 키 없음 · 기본 규칙 필터로 동작 중';
   $('llm-status').className = `tag ${llm.enabled ? 'ok' : 'warn'}`;
   const flagged = filterLog.filter((f) => f.blocked || f.severity === 'severe').length;
   $('filter-flag').hidden = !flagged;
@@ -536,8 +537,7 @@ document.querySelectorAll('input[name=ff]').forEach((r) =>
 
 // ---------- 세대 QR ----------
 function unitUrl(code) {
-  const base = (state.config.publicUrl || location.origin).replace(/\/$/, '');
-  return `${base}/b/${SLUG}/?code=${code}`;
+  return new URL(`app.html?code=${code}`, location.href).href;
 }
 
 function renderCodes() {
@@ -991,10 +991,9 @@ $('faq-save').addEventListener('click', async () => {
 // ---------- 설정 ----------
 function renderSettings() {
   const s = state.snap;
-  const origin = location.origin;
-  $('addr-user').textContent = `${origin}/b/${SLUG}/`;
-  $('addr-admin').textContent = `${origin}/b/${SLUG}/admin`;
-  $('link-user').href = `/b/${SLUG}/`;
+  $('addr-user').textContent = new URL('app.html', location.href).href;
+  $('addr-admin').textContent = new URL('admin.html', location.href).href;
+  $('link-user').href = 'app.html';
   if (state.settingsDirty) return;
   $('set-name').value = s.config.name;
   $('set-manual').checked = s.config.allowManualJoin;
@@ -1042,7 +1041,7 @@ async function init() {
   // 등록 직후 링크(#key=...)로 들어오면 키를 저장하고 주소창에서 지운다
   const hashKey = new URLSearchParams(location.hash.slice(1)).get('key');
   if (hashKey) history.replaceState(null, '', location.pathname);
-  const key = hashKey || localStorage.getItem(KEY_STORE);
+  const key = hashKey || localStorage.getItem(KEY_STORE) || DEMO_ADMIN_KEY; // 데모: 키 없이 바로 들어간다
   if (key) start(key);
   else $('gate').hidden = false;
 }

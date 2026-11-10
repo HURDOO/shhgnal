@@ -1,17 +1,35 @@
-// 쉿!그널 주민 앱
+// 쉿!그널 주민 앱 (정적 데모: 서버 대신 mock-server.js가 브라우저 안에서 API를 처리)
+import { DEMO_SLUG } from './mock-server.js';
 const $ = (id) => document.getElementById(id);
 
-// 건물 주소: /b/<slug>/
-const SLUG = location.pathname.match(/^\/b\/([a-z0-9-]+)/)?.[1];
-const API = `/api/b/${SLUG}`;
-const TOKEN_KEY = `knock-token-${SLUG}`;
-const DEVICE_KEY = 'knock-device'; // 기기 식별 (신고 누적 제한용, 등록 해제해도 유지)
-const SEEN_ADMIN_KEY = `knock-seen-admin-${SLUG}`; // 마지막으로 확인한 관리사무소 답변 id
+const SLUG = DEMO_SLUG;
+const API = `api/b/${SLUG}`;
+// 데모에서는 브라우저 탭 하나가 한 세대의 폰이다. 주소의 ?unit=호수 별로 등록 정보를 따로 둔다.
+let slot = new URLSearchParams(location.search).get('unit') || 'default';
+const TOKEN_KEY = () => `knock-token-${SLUG}-${slot}`;
+const DEVICE_KEY = (u = slot) => `knock-device-${u}`; // 기기 식별 (신고 누적 제한용, 등록 해제해도 유지)
+const SEEN_ADMIN_KEY = () => `knock-seen-admin-${SLUG}-${slot}`; // 마지막으로 확인한 관리사무소 답변 id
+// 등록한 호수로 이 탭의 자리를 옮기고 주소를 ?unit=호수로 맞춘다 (새로고침해도 같은 세대로 열리게)
+function bindUnit(unit, token) {
+  if (slot !== unit) {
+    localStorage.removeItem(TOKEN_KEY());
+    slot = unit;
+  }
+  localStorage.setItem(TOKEN_KEY(), token);
+  history.replaceState(null, '', `${location.pathname}?unit=${encodeURIComponent(unit)}`);
+}
+const safeGet = (k) => {
+  try {
+    return localStorage.getItem(k);
+  } catch {
+    return null;
+  }
+};
 const DIR_LABEL = { up: '윗집', down: '아랫집', left: '옆집', right: '옆집' };
 
 const state = {
   config: null,
-  token: localStorage.getItem(TOKEN_KEY),
+  token: safeGet(TOKEN_KEY()),
   unit: null,
   active: [],
   history: [],
@@ -31,12 +49,14 @@ const state = {
   reportingId: null,
 };
 
-function deviceId() {
-  let id = localStorage.getItem(DEVICE_KEY);
+// 데모: 호수마다 다른 기기로 본다 (같은 브라우저의 여러 탭이 서로 다른 세대 역할을 하므로)
+function deviceId(u = slot) {
+  u = String(u).replace(/호$/, '');
+  let id = localStorage.getItem(DEVICE_KEY(u));
   if (!id) {
     // randomUUID는 https·localhost에서만 있어서, 내부망 http 접속에서도 되는 getRandomValues를 쓴다
     id = Array.from(crypto.getRandomValues(new Uint8Array(16)), (b) => b.toString(16).padStart(2, '0')).join('');
-    localStorage.setItem(DEVICE_KEY, id);
+    localStorage.setItem(DEVICE_KEY(u), id);
   }
   return id;
 }
@@ -139,11 +159,12 @@ setInterval(() => state.config && state.token && renderQuiet(), 60_000);
 async function registerSW() {
   if (!('serviceWorker' in navigator)) return;
   try {
-    state.swReg = await navigator.serviceWorker.register('/sw.js');
+    state.swReg = await navigator.serviceWorker.register('sw.js');
     navigator.serviceWorker.addEventListener('message', (e) => {
       if (e.data?.type === 'open-alert') openIncomingById(e.data.id);
       if (e.data?.type === 'open-chat') openChat();
       if (e.data?.type === 'replied') applyAlertUpdate(e.data.alert);
+      if (e.data?.type === 'do-reply' && e.data.url === location.pathname + location.search) sendReply(e.data.id, e.data.reply); // 알림의 답장 버튼
     });
   } catch (e) {
     console.warn('서비스워커 등록 실패', e);
@@ -175,6 +196,7 @@ function urlBase64ToUint8Array(base64) {
 // 웹 푸시 구독 → 서버에 등록. 서버가 재시작돼도 다시 등록되도록 들어올 때마다 호출한다.
 async function subscribePush() {
   state.pushOn = false;
+  if (!state.config.vapidPublicKey) return false; // 정적 데모: 웹 푸시 없음 (열려 있는 탭이 알림을 띄운다)
   if (!('PushManager' in window) || Notification.permission !== 'granted' || !state.token) return false;
   try {
     const reg = await navigator.serviceWorker.ready;
@@ -198,15 +220,15 @@ async function subscribePush() {
 function renderNotifStatus() {
   const perm = 'Notification' in window ? Notification.permission : 'unsupported';
   const badge = $('notif-badge');
-  badge.textContent = state.pushOn ? '🔔 푸시 켜짐' : perm === 'granted' ? '🔔 앱 알림만' : '🔕 알림 꺼짐';
+  badge.textContent = state.pushOn ? '🔔 푸시 켜짐' : perm === 'granted' ? '🔔 앱 알림' : '🔕 알림 꺼짐';
   badge.classList.toggle('off', !state.pushOn);
 
   let warn = null;
   if (!window.isSecureContext) warn = 'https 주소로 접속해야 푸시 알림을 받을 수 있어요. 지금은 앱을 열어둔 동안만 알림이 떠요.';
   else if (isIOS && !isStandalone) warn = '아이폰은 공유 버튼 → "홈 화면에 추가" 후, 홈 화면 아이콘으로 열어야 알림을 받을 수 있어요.';
   else if (perm === 'denied') warn = '알림이 차단돼 있어요. 브라우저 사이트 설정에서 알림을 허용해 주세요.';
-  else if (perm === 'default') warn = '알림을 허용하면 앱을 닫아도 이웃의 알림을 받을 수 있어요.';
-  else if (!state.pushOn) warn = '푸시 등록에 실패해서 앱을 열어둔 동안만 알림이 떠요.';
+  else if (perm === 'default') warn = state.config.demo ? '알림을 허용하면 다른 탭을 보고 있어도 이웃의 알림이 떠요. (데모는 이 탭이 열려 있을 때만)' : '알림을 허용하면 앱을 닫아도 이웃의 알림을 받을 수 있어요.';
+  else if (!state.pushOn && !state.config.demo) warn = '푸시 등록에 실패해서 앱을 열어둔 동안만 알림이 떠요.';
   $('notif-warning').hidden = !warn;
   $('notif-warning-text').textContent = warn || '';
   $('notif-retry').hidden = perm !== 'default';
@@ -231,10 +253,10 @@ $('join-form').addEventListener('submit', async (e) => {
   // 사용자 제스처 안에서 바로 권한을 요청해야 브라우저가 막지 않는다
   const permPromise = requestNotify();
   try {
-    const res = await api('join', { unit, token: state.token, deviceId: deviceId() });
+    const res = await api('join', { unit, token: state.token, deviceId: deviceId(unit) });
     state.token = res.token;
     state.unit = res.unit;
-    localStorage.setItem(TOKEN_KEY, res.token);
+    bindUnit(res.unit, res.token);
     enterHome();
     if (res.household > 1) toast(`${res.unit}호 가족 ${res.household}명이 함께 쓰고 있어요`);
     // 권한 팝업에 응답하지 않아도 등록은 진행하고, 응답이 오면 상태만 갱신
@@ -253,12 +275,11 @@ $('code-form').addEventListener('submit', async (e) => {
   $('code-error').textContent = '';
   const permPromise = requestNotify();
   try {
-    const res = await api('join', { code: state.code, token: state.token, deviceId: deviceId() });
+    const res = await api('join', { code: state.code, token: state.token, deviceId: deviceId(state.codeUnit || slot) });
     state.token = res.token;
     state.unit = res.unit;
     state.code = null;
-    localStorage.setItem(TOKEN_KEY, res.token);
-    history.replaceState(null, '', location.pathname); // 주소창에 코드가 남지 않게
+    bindUnit(res.unit, res.token); // 주소창에 코드가 남지 않게 ?unit=호수로 바꾼다
     enterHome();
     if (res.household > 1) toast(`${res.unit}호 가족 ${res.household}명이 함께 쓰고 있어요`);
     permPromise.then(async () => {
@@ -279,6 +300,7 @@ async function renderJoin() {
     try {
       const { unit } = await api(`unit-code?code=${encodeURIComponent(state.code)}`);
       $('code-unit').textContent = unit;
+      state.codeUnit = unit;
       $('code-form').hidden = false;
       return;
     } catch (err) {
@@ -313,8 +335,9 @@ $('move-form').addEventListener('submit', async (e) => {
   const unit = $('move-input').value.trim().replace(/호$/, '');
   if (unit === state.unit) return ($('move-error').textContent = '지금 등록된 호수예요.');
   try {
-    const res = await api('join', { unit, token: state.token, deviceId: deviceId() });
+    const res = await api('join', { unit, token: state.token, deviceId: deviceId(unit) });
     closeSheet('move');
+    bindUnit(res.unit, state.token);
     toast(`${res.unit}호로 바꿨어요`);
     state.incomingQueue = [];
     connect(); // 새 호수 기준으로 기록을 다시 받는다
@@ -335,7 +358,7 @@ function resetToJoin() {
   state.token = null;
   state.unit = null;
   state.incomingQueue = [];
-  localStorage.removeItem(TOKEN_KEY);
+  localStorage.removeItem(TOKEN_KEY());
   for (const id of ['compose', 'incoming', 'report', 'move', 'chat', 'admin-reply', 'notice-sheet', 'calendar', 'vent']) closeSheet(id);
   show('join');
   renderJoin();
@@ -406,7 +429,7 @@ const handlers = {
         body: alertSentence(a),
         tag: a.id,
         requireInteraction: true,
-        data: { id: a.id, token: state.token, kind: 'alert', slug: SLUG, url: location.pathname },
+        data: { id: a.id, kind: 'alert', url: location.pathname + location.search },
         actions: [
           { action: 'sorry', title: '죄송해요, 조심할게요' },
           { action: 'notus', title: '저희 집 아니에요' },
@@ -1122,14 +1145,14 @@ function openChat() {
 // ---------- 관리사무소 답변 팝업 ----------
 function unseenAdminReplies() {
   const admin = state.chat.filter((m) => m.from === 'admin');
-  const seen = localStorage.getItem(SEEN_ADMIN_KEY);
+  const seen = localStorage.getItem(SEEN_ADMIN_KEY());
   const i = admin.findIndex((m) => m.id === seen);
   return admin.slice(i + 1);
 }
 
 function markAdminSeen() {
   const last = state.chat.filter((m) => m.from === 'admin').at(-1);
-  if (last) localStorage.setItem(SEEN_ADMIN_KEY, last.id);
+  if (last) localStorage.setItem(SEEN_ADMIN_KEY(), last.id);
   $('chat-dot').hidden = true;
 }
 
@@ -1162,7 +1185,7 @@ $('chat-fab').addEventListener('click', openChat);
 $('vent-fab').addEventListener('click', () => {
   const up = neighbors(state.unit).up;
   const q = new URLSearchParams({ from: state.unit || '', ...(up ? { to: up } : {}) });
-  $('vent-frame').src = `/vent.html?${q}`;
+  $('vent-frame').src = `vent.html?${q}`;
   openSheet('vent');
 });
 function closeVent() {
@@ -1276,6 +1299,7 @@ async function init() {
   const preset = new URLSearchParams(location.search).get('unit');
   if (preset) $('unit-input').value = preset;
   if (state.token && !state.code) enterHome(); // 서버가 모르는 토큰이면 invalid 응답으로 등록 화면 복귀
+  else if (preset && !state.code && state.config.allowManualJoin) autoJoin(preset);
   else {
     show('join');
     renderJoin();
@@ -1283,6 +1307,21 @@ async function init() {
   document.addEventListener('visibilitychange', () => {
     if (!document.hidden && state.token) renderNotifStatus();
   });
+}
+
+// 데모 링크(?unit=호수)로 처음 들어오면 그 호수로 바로 등록한다
+async function autoJoin(unit) {
+  try {
+    const res = await api('join', { unit, deviceId: deviceId() });
+    state.token = res.token;
+    state.unit = res.unit;
+    bindUnit(res.unit, res.token);
+    enterHome();
+  } catch (err) {
+    show('join');
+    renderJoin();
+    $('join-error').textContent = err.message;
+  }
 }
 
 init();
